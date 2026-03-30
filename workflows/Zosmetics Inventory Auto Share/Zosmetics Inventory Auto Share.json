@@ -273,7 +273,7 @@
         "emailType": "text",
         "message": "=Hi {{ $('Edit Fields').item.json.parameters.assignments.assignments[0].value }}\n\nThank you for your enquiry.\n\nHere is our latest inventory sheet. \n\nhttps://docs.google.com/spreadsheets/d/{{ $('Copy Inventory Sheet').item.json.id }}/edit\n\nIf there's any doubt please feel free to reach us.\n\nThanks & Regards\n<Name>\n+91 <Number>\n",
         "options": {
-          "ccList": "vishesh@zosmetics.com"
+          "ccList": "<Email>"
         }
       },
       "type": "n8n-nodes-base.gmail",
