@@ -1,0 +1,529 @@
+{
+  "name": "Zosmetics Inventory Auto Share",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1CI78y2Vglroe54GxFLJpU7mzGIqvh7NVJ9AJHWJSW8A",
+          "mode": "list",
+          "cachedResultName": "Kbeauty Enquiry",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CI78y2Vglroe54GxFLJpU7mzGIqvh7NVJ9AJHWJSW8A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CI78y2Vglroe54GxFLJpU7mzGIqvh7NVJ9AJHWJSW8A/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.parameters.assignments.assignments[0].value }}",
+            "Email": "={{ $json.parameters.assignments.assignments[1].value }}",
+            "Contact number": "={{ $json.parameters.assignments.assignments[3].value }}",
+            "City": "={{ $json.parameters.assignments.assignments[2].value }}",
+            "Submitted at": "={{ $json.parameters.assignments.assignments[8].value }}",
+            "Generated File Name": "={{ $json.parameters.assignments.assignments[7].value }}",
+            "Enquiry_ID": "={{ $json.parameters.assignments.assignments[10].value }}",
+            "Share Status": "Pending"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Enquiry_ID",
+              "displayName": "Enquiry_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Contact number",
+              "displayName": "Contact number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Submitted at",
+              "displayName": "Submitted at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Generated File Name",
+              "displayName": "Generated File Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Copied File ID",
+              "displayName": "Copied File ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Copied File URL",
+              "displayName": "Copied File URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Share Status",
+              "displayName": "Share Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        432,
+        96
+      ],
+      "id": "29704de3-98d5-4dc6-9265-21bc30c1fd26",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "NX1whRQeQxGlsgQO",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "value": "1ildfNiUroZonCCIIOASADqZs7FPJG2ax5Moe6cmi8D4",
+          "mode": "list",
+          "cachedResultName": "Zosmetics_Inventory_update",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ildfNiUroZonCCIIOASADqZs7FPJG2ax5Moe6cmi8D4/edit?usp=drivesdk"
+        },
+        "name": "=kbeauty_inventory_{{ $now.format('dd-MM-yyyy') }}_{{ $json['Generated File Name'] }}",
+        "options": {}
+      },
+      "id": "8e04d4d8-346d-4faf-a77e-5ad0b1d6e9d8",
+      "name": "Copy Inventory Sheet",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        624,
+        96
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "Icv8YObIAUu12a3p",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "writer",
+            "type": "user",
+            "emailAddress": "={{ $('Append row in sheet').item.json.Email }}"
+          }
+        },
+        "options": {
+          "sendNotificationEmail": true
+        }
+      },
+      "id": "db86b68b-dce3-49a9-86c2-c2ad6786c728",
+      "name": "Share with User",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        816,
+        96
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "Icv8YObIAUu12a3p",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Enquiry Form",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "placeholder": "Please enter your full name"
+            },
+            {
+              "fieldLabel": "Whatsapp Mobile Number",
+              "fieldType": "number",
+              "fieldName": "Whatsapp",
+              "placeholder": "Enter your whatsapp mobile number with country code"
+            },
+            {
+              "fieldLabel": "Email ID",
+              "fieldType": "email",
+              "placeholder": "Please enter your Email ID"
+            },
+            {
+              "fieldLabel": "City",
+              "placeholder": "Please enter city name where you want the stock delivery"
+            }
+          ]
+        },
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        16,
+        96
+      ],
+      "id": "8722c735-cf76-4bd4-b3b2-c144567bfd74",
+      "name": "On form submission",
+      "webhookId": "108bff9a-c85d-44e5-9f5d-c0b2400f4514"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"parameters\": {\n    \"assignments\": {\n      \"assignments\": [\n        {\n          \"name\": \"name\",\n          \"value\": \"{{ $json[\"Name\"] }}\",\n          \"type\": \"string\"\n        },\n        {\n          \"name\": \"email\",\n          \"value\": \"{{ $json[\"Email ID\"] }}\",\n          \"type\": \"string\"\n        },\n        {\n          \"name\": \"city\",\n          \"value\": \"{{ $json[\"City\"] }}\",\n          \"type\": \"string\"\n        },\n        {\n          \"name\": \"whatsapp\",\n          \"value\": \"{{ $json[\"Whatsapp\"] }}\",\n          \"type\": \"string\"\n        },\n        {\n          \"name\": \"name_clean\",\n          \"value\": \"{{ $json[\"Name\"].trim().replace(/[/:*?\"<> |]/g, \"\").replace( \"_\") }}\",\n          \"type\": \"string\"\n        },\n        {\n          \"name\": \"city_clean\",\n          \"value\": \"{{ $json[\"City\"].trim().replace(/[/:*?\"<> |]/g, \"\").replace( \"_\") }}\",\n          \"type\": \"string\"\n        },\n        {\n          \"name\": \"whatsapp_clean\",\n          \"value\": \"{{ String($json[\"Whatsapp\"]).replace(/D/g, \"\") }}\",\n          \"type\": \"string\"\n        },\n        {\n          \"name\": \"filename\",\n          \"value\": \"{{ $json[\"Name\"].trim().replace(/[/:*?\"<> |]/g, \"\").replace( \"_\") + \"_\" + $json[\"City\"].trim().replace(/[/:*?\"<>| ]/g, \"\").replace( \"_\") + \"_\" + String($json[\"Whatsapp\"]).replace(/D/g, \"\") }}\",\n          \"type\": \"string\"\n        },\n        {\n          \"name\": \"submitted_at\",\n          \"value\": \"{{ $json[\"submittedAt\"].toDateTime().format('dd-MM-yyyy HH:MM') }}\",\n          \"type\": \"string\"\n        },\n        {\n          \"name\": \"form_mode\",\n          \"value\": \"{{ $json[\"formMode\"] }}\",\n          \"type\": \"string\"\n        },\n        {\n          \"name\": \"Enquiry ID\",\n          \"value\": \"{{ Date.now() }}\",\n          \"type\": \"string\"\n        }\n      ]\n    }\n  },\n  \"name\": \"Clean & Prepare Data\",\n  \"type\": \"n8n-nodes-base.set\",\n  \"typeVersion\": 3,\n  \"position\": [420, 300]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        96
+      ],
+      "id": "e1e07d49-a8e7-4c4a-9e9a-4f37f15fbe8a",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Edit Fields').item.json.parameters.assignments.assignments[1].value }}",
+        "subject": "=Latest Zosmetics Inventory Sheet  {{ $('Edit Fields').item.json.parameters.assignments.assignments[8].value }}",
+        "emailType": "text",
+        "message": "=Hi {{ $('Edit Fields').item.json.parameters.assignments.assignments[0].value }}\n\nThank you for your enquiry.\n\nHere is our latest inventory sheet. \n\nhttps://docs.google.com/spreadsheets/d/{{ $('Copy Inventory Sheet').item.json.id }}/edit\n\nIf there's any doubt please feel free to reach us.\n\nThanks & Regards\n<Name>\n+91 <Number>\n",
+        "options": {
+          "ccList": "vishesh@zosmetics.com"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        976,
+        96
+      ],
+      "id": "b3bdedc0-3a40-4b9f-88b9-a07556fa5048",
+      "name": "Send a message",
+      "webhookId": "475bddf1-61e8-4c75-a19a-0e48fc09cb69",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "rAVN1Pla3IQGmtJJ",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1CI78y2Vglroe54GxFLJpU7mzGIqvh7NVJ9AJHWJSW8A",
+          "mode": "list",
+          "cachedResultName": "Kbeauty Enquiry",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CI78y2Vglroe54GxFLJpU7mzGIqvh7NVJ9AJHWJSW8A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CI78y2Vglroe54GxFLJpU7mzGIqvh7NVJ9AJHWJSW8A/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Enquiry_ID": "={{ $('Edit Fields').item.json.parameters.assignments.assignments[10].value }}",
+            "Copied File ID": "={{ $('Copy Inventory Sheet').item.json.id }}",
+            "Copied File URL": "=https://docs.google.com/spreadsheets/d/{{ $('Copy Inventory Sheet').item.json.id }}/edit",
+            "Share Status": "Shared"
+          },
+          "matchingColumns": [
+            "Enquiry_ID"
+          ],
+          "schema": [
+            {
+              "id": "Enquiry_ID",
+              "displayName": "Enquiry_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Contact number",
+              "displayName": "Contact number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Submitted at",
+              "displayName": "Submitted at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Generated File Name",
+              "displayName": "Generated File Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Copied File ID",
+              "displayName": "Copied File ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Copied File URL",
+              "displayName": "Copied File URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Share Status",
+              "displayName": "Share Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1184,
+        96
+      ],
+      "id": "1f57f11c-f73b-421c-a49c-f512940fea1f",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "NX1whRQeQxGlsgQO",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Copy Inventory Sheet": {
+      "main": [
+        [
+          {
+            "node": "Share with User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share with User": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Copy Inventory Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a5ecfb9e-afbe-4c2c-8fdd-7f29eaf58367",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "657da33e7f307a91d947d1bebc548aa98e7a15e1612b5f15a774a62389a75424"
+  },
+  "id": "rKGdtOibVGXO5C1S",
+  "tags": []
+}
