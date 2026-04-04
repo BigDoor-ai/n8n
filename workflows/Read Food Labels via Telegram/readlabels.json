@@ -1,0 +1,422 @@
+{
+  "name": "Telegram Bot - Food Label Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ]
+      },
+      "id": "1",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "YOUR_TELEGRAM_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has-photo",
+              "leftValue": "={{ !!($json.message && $json.message.photo && $json.message.photo.length) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "2",
+      "name": "IF Has Photo?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "Please send a clear photo of the ingredient list or nutrition chart.",
+        "additionalFields": {}
+      },
+      "id": "3",
+      "name": "Telegram - Ask For Photo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        760,
+        460
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "YOUR_TELEGRAM_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.message.photo[$json.message.photo.length - 1].file_id }}",
+        "download": true
+      },
+      "id": "4",
+      "name": "Telegram - Get File",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        760,
+        220
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "YOUR_TELEGRAM_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('Telegram Trigger').first().json;\nconst photoBinary = $binary.data;\nconst mime = photoBinary.mimeType || 'image/jpeg';\nconst base64 = photoBinary.data;\n\nreturn [{\n  json: {\n    chat_id: trigger.message.chat.id,\n    user_id: trigger.message.from.id,\n    username: trigger.message.from.username || '',\n    photo_mime: mime,\n    image_data_url: `data:${mime};base64,${base64}`,\n    openai_payload: {\n      model: 'gpt-4.1-mini',\n      input: [\n        {\n          role: 'system',\n          content: [\n            {\n              type: 'input_text',\n              text: 'You are a strict food label analyst. Read the package image and return valid JSON only.'\n            }\n          ]\n        },\n        {\n          role: 'user',\n          content: [\n            {\n              type: 'input_text',\n              text: `Analyze this product label image. Extract the product name, brand name if visible, ingredients, nutrition information, and then judge whether it looks Healthy, Moderate, Poor, or Unclear. Do not invent anything not visible. Return JSON only with this exact schema:\\n{\\n  \\\"product_name\\\": \\\"\\\",\\n  \\\"brand_name\\\": \\\"\\\",\\n  \\\"ingredients_text\\\": \\\"\\\",\\n  \\\"nutrition_text\\\": \\\"\\\",\\n  \\\"health_score\\\": 0,\\n  \\\"verdict\\\": \\\"Healthy|Moderate|Poor|Unclear\\\",\\n  \\\"summary\\\": \\\"\\\",\\n  \\\"good_points\\\": [\\\"\\\"],\\n  \\\"concerning_points\\\": [\\\"\\\"],\\n  \\\"chart_data\\\": {\\n    \\\"beneficial\\\": 0,\\n    \\\"neutral\\\": 0,\\n    \\\"concerning\\\": 0\\n  },\\n  \\\"telegram_message\\\": \\\"\\\"\\n}\\nRules: health_score must be 0-100. chart_data must total exactly 100.`\n            },\n            {\n              type: 'input_image',\n              image_url: `data:${mime};base64,${base64}`\n            }\n          ]\n        }\n      ]\n    }\n  },\n  binary: $binary\n}];"
+      },
+      "id": "5",
+      "name": "Code - Build OpenAI Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1020,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_OPENAI_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.openai_payload }}",
+        "options": {}
+      },
+      "id": "6",
+      "name": "HTTP - OpenAI Analyze",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1280,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const prior = $('Code - Build OpenAI Payload').first().json;\nconst resp = $json;\n\nfunction tryParse(str) {\n  try { return JSON.parse(str); } catch (e) { return null; }\n}\n\nlet rawText = '';\n\nif (typeof resp.output_text === 'string' && resp.output_text.trim()) {\n  rawText = resp.output_text.trim();\n} else if (Array.isArray(resp.output)) {\n  for (const item of resp.output) {\n    if (Array.isArray(item.content)) {\n      for (const c of item.content) {\n        if (typeof c.text === 'string' && c.text.trim()) {\n          rawText = c.text.trim();\n          break;\n        }\n      }\n    }\n    if (rawText) break;\n  }\n}\n\nlet parsed = tryParse(rawText);\nif (!parsed && rawText.startsWith('```')) {\n  parsed = tryParse(rawText.replace(/^```json\\s*/i, '').replace(/^```\\s*/i, '').replace(/```$/, '').trim());\n}\n\nif (!parsed) {\n  parsed = {\n    product_name: '',\n    brand_name: '',\n    ingredients_text: '',\n    nutrition_text: '',\n    health_score: 0,\n    verdict: 'Unclear',\n    summary: 'I could not parse the model response cleanly. Please send a sharper image.',\n    good_points: [],\n    concerning_points: [],\n    chart_data: { beneficial: 0, neutral: 0, concerning: 100 },\n    telegram_message: 'I could not read this label clearly. Please send a sharper image of the ingredients or nutrition panel.'\n  };\n}\n\nparsed.product_name = (parsed.product_name || '').trim();\nparsed.brand_name = (parsed.brand_name || '').trim();\nparsed.ingredients_text = parsed.ingredients_text || '';\nparsed.nutrition_text = parsed.nutrition_text || '';\nparsed.health_score = Math.max(0, Math.min(100, Number(parsed.health_score || 0)));\nparsed.verdict = parsed.verdict || 'Unclear';\nparsed.summary = parsed.summary || '';\nparsed.good_points = Array.isArray(parsed.good_points) ? parsed.good_points : [];\nparsed.concerning_points = Array.isArray(parsed.concerning_points) ? parsed.concerning_points : [];\n\nlet beneficial = Number(parsed.chart_data?.beneficial || 0);\nlet neutral = Number(parsed.chart_data?.neutral || 0);\nlet concerning = Number(parsed.chart_data?.concerning || 0);\nbeneficial = Math.max(0, Math.min(100, beneficial));\nneutral = Math.max(0, Math.min(100, neutral));\nconcerning = Math.max(0, Math.min(100, concerning));\nlet total = beneficial + neutral + concerning;\nif (total !== 100) {\n  if (total === 0) {\n    beneficial = 0; neutral = 0; concerning = 100;\n  } else {\n    const scale = 100 / total;\n    beneficial = Math.round(beneficial * scale);\n    neutral = Math.round(neutral * scale);\n    concerning = 100 - beneficial - neutral;\n  }\n}\n\nconst telegramText = parsed.telegram_message && parsed.telegram_message.trim()\n  ? parsed.telegram_message.trim()\n  : `*${parsed.product_name || 'Product analysis'}*\\n\\nVerdict: ${parsed.verdict}\\nScore: ${parsed.health_score}/100\\n\\n${parsed.summary || 'No clear summary available.'}\\n\\nConcerning points:\\n- ${parsed.concerning_points.length ? parsed.concerning_points.join('\\n- ') : 'None clearly detected'}\\n\\nGood points:\\n- ${parsed.good_points.length ? parsed.good_points.join('\\n- ') : 'None clearly detected'}`;\n\nconst chartConfig = {\n  type: 'pie',\n  data: {\n    labels: ['Beneficial', 'Neutral', 'Concerning'],\n    datasets: [{ data: [beneficial, neutral, concerning] }]\n  },\n  options: {\n    plugins: {\n      legend: { position: 'bottom' },\n      title: { display: true, text: `${parsed.product_name || 'Product'} Ingredient Profile` }\n    }\n  }\n};\n\nconst chartUrl = 'https://quickchart.io/chart?width=800&height=500&format=png&c=' + encodeURIComponent(JSON.stringify(chartConfig));\n\nreturn [{\n  json: {\n    chat_id: prior.chat_id,\n    user_id: prior.user_id,\n    username: prior.username,\n    product_name_key: (parsed.product_name || '').trim().toLowerCase(),\n    analysis: {\n      product_name: parsed.product_name || '',\n      brand_name: parsed.brand_name || '',\n      ingredients_text: parsed.ingredients_text || '',\n      nutrition_text: parsed.nutrition_text || '',\n      health_score: parsed.health_score,\n      verdict: parsed.verdict,\n      summary: parsed.summary,\n      good_points: parsed.good_points,\n      concerning_points: parsed.concerning_points,\n      chart_data: {\n        beneficial,\n        neutral,\n        concerning\n      }\n    },\n    telegram_text: telegramText,\n    chart_url: chartUrl\n  }\n}];"
+      },
+      "id": "7",
+      "name": "Code - Parse Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [
+            "product_name"
+          ],
+          "value": {
+            "product_name": "={{ $json.product_name_key }}",
+            "brand_name": "={{ $json.analysis.brand_name }}",
+            "ingredients_text": "={{ $json.analysis.ingredients_text }}",
+            "nutrition_text": "={{ $json.analysis.nutrition_text }}",
+            "health_score": "={{ $json.analysis.health_score }}",
+            "verdict": "={{ $json.analysis.verdict }}",
+            "summary": "={{ $json.analysis.summary }}",
+            "good_points": "={{ $json.analysis.good_points.join(' | ') }}",
+            "concerning_points": "={{ $json.analysis.concerning_points.join(' | ') }}",
+            "chart_beneficial": "={{ $json.analysis.chart_data.beneficial }}",
+            "chart_neutral": "={{ $json.analysis.chart_data.neutral }}",
+            "chart_concerning": "={{ $json.analysis.chart_data.concerning }}",
+            "created_at": "={{ new Date().toISOString() }}",
+            "updated_at": "={{ new Date().toISOString() }}"
+          },
+          "schema": [
+            {
+              "id": "product_name",
+              "displayName": "product_name",
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "brand_name",
+              "displayName": "brand_name",
+              "type": "string"
+            },
+            {
+              "id": "ingredients_text",
+              "displayName": "ingredients_text",
+              "type": "string"
+            },
+            {
+              "id": "nutrition_text",
+              "displayName": "nutrition_text",
+              "type": "string"
+            },
+            {
+              "id": "health_score",
+              "displayName": "health_score",
+              "type": "string"
+            },
+            {
+              "id": "verdict",
+              "displayName": "verdict",
+              "type": "string"
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "type": "string"
+            },
+            {
+              "id": "good_points",
+              "displayName": "good_points",
+              "type": "string"
+            },
+            {
+              "id": "concerning_points",
+              "displayName": "concerning_points",
+              "type": "string"
+            },
+            {
+              "id": "chart_beneficial",
+              "displayName": "chart_beneficial",
+              "type": "string"
+            },
+            {
+              "id": "chart_neutral",
+              "displayName": "chart_neutral",
+              "type": "string"
+            },
+            {
+              "id": "chart_concerning",
+              "displayName": "chart_concerning",
+              "type": "string"
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "type": "string"
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8",
+      "name": "Google Sheets - Append Or Update",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1810,
+        100
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_GOOGLE_SHEETS_CREDENTIAL_ID",
+          "name": "YOUR_GOOGLE_SHEETS_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.telegram_text }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "9",
+      "name": "Telegram - Send Analysis",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1810,
+        220
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "YOUR_TELEGRAM_CREDENTIAL_NAME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendPhoto",
+        "chatId": "={{ $json.chat_id }}",
+        "photo": "={{ $json.chart_url }}",
+        "additionalFields": {
+          "caption": "Ingredient profile chart"
+        }
+      },
+      "id": "10",
+      "name": "Telegram - Send Chart",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1810,
+        340
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "YOUR_TELEGRAM_CREDENTIAL_NAME"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "IF Has Photo?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has Photo?": {
+      "main": [
+        [
+          {
+            "node": "Telegram - Get File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram - Ask For Photo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram - Get File": {
+      "main": [
+        [
+          {
+            "node": "Code - Build OpenAI Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build OpenAI Payload": {
+      "main": [
+        [
+          {
+            "node": "HTTP - OpenAI Analyze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - OpenAI Analyze": {
+      "main": [
+        [
+          {
+            "node": "Code - Parse Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Parse Analysis": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Append Or Update",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram - Send Analysis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Telegram - Send Chart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "read-labels-v1"
+}
