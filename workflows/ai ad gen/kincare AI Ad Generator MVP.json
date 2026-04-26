@@ -1,0 +1,591 @@
+{
+  "name": "Skincare AI Ad Generator MVP - Google Drive Version",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Skincare AI Ad Generator",
+        "formDescription": "Submit skincare product details and generate a short Instagram Reel ad.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Product URL",
+              "placeholder": "https://example.com/product",
+            },
+            {
+              "fieldLabel": "Product Details",
+              "fieldType": "textarea",
+              "placeholder": "Paste benefits, ingredients, usage, claims, price, etc."
+            },
+            {
+              "fieldLabel": "Product Image URL",
+              "placeholder": "Use a PUBLIC image URL (not Google Drive private link)",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Brand Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Target Audience",
+              "placeholder": "Indian women aged 22-40"
+            },
+            {
+              "fieldLabel": "CTA",
+              "placeholder": "Shop now",
+              "defaultValue": "Shop Now"
+            },
+            {
+              "fieldLabel": "Ad Style",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Luxury"
+                  },
+                  {
+                    "option": "Clinical"
+                  },
+                  {
+                    "option": "product-only "
+                  },
+                  {
+                    "option": "Night Routine"
+                  },
+                  {
+                    "option": "Natural "
+                  },
+                  {
+                    "option": "Youthful"
+                  },
+                  {
+                    "option": "Dermatologist-style"
+                  },
+                  {
+                    "option": "Korean skincare "
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Model Preference",
+              "fieldType": "dropdown",
+              "defaultValue": "Let AI decide",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Female model"
+                  },
+                  {
+                    "option": "Male model"
+                  },
+                  {
+                    "option": "No model (product only)"
+                  },
+                  {
+                    "option": "Let AI decide"
+                  }
+                ]
+              }
+            },
+            {
+              "fieldLabel": "Generation Mode",
+              "fieldType": "dropdown",
+              "defaultValue": "Test - 1 scene only",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Test - 1 scene only"
+                  },
+                  {
+                    "option": "Full - 5 scenes"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "responseMode": "lastNode",
+        "options": {
+          "buttonLabel": "Generate Skincare Ad"
+        }
+      },
+      "id": "bab1d701-3bf3-4835-b350-5b746068b75c",
+      "name": "1. Skincare Ad Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        3136,
+        -64
+      ],
+      "webhookId": "6ac6602a-80b8-47c2-a6aa-cd6d7f5277dd"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nconst product_url = data[\"Product URL\"] || '';\nconst product_doc_text = data[\"Product Details\"] || '';\nconst product_image_url = data[\"Product Image URL\"] || '';\nconst brand_name = data[\"Brand Name\"] || 'Skincare Brand';\n\nconst target_audience =\n  data[\"Target Audience\"] && data[\"Target Audience\"].trim() !== ''\n    ? data[\"Target Audience\"].trim()\n    : 'Skincare buyers in India';\n\nconst cta =\n  data[\"CTA\"] && data[\"CTA\"].trim() !== ''\n    ? data[\"CTA\"].trim()\n    : 'Shop Now';\n\nconst ad_style =\n  data[\"Ad Style\"] && data[\"Ad Style\"].trim() !== ''\n    ? `${data[\"Ad Style\"].trim()}, skincare-focused, hyper-realistic, vertical 9:16 Instagram Reel`\n    : 'premium skincare commercial, skincare-focused, hyper-realistic, vertical 9:16 Instagram Reel';\n\n// Supports both corrected and old misspelled form field names\nconst model_preference_raw = data[\"Model Preference\"] || data[\"Model Peference\"] || '';\nconst model_preference =\n  model_preference_raw && model_preference_raw.trim() !== ''\n    ? model_preference_raw.trim()\n    : 'Let AI decide';\n\nconst generation_mode =\n  data[\"Generation Mode\"] && data[\"Generation Mode\"].trim() !== ''\n    ? data[\"Generation Mode\"].trim()\n    : 'Test - 1 scene only';\n\nconst scene_limit = generation_mode.toLowerCase().includes('full') ? 5 : 1;\n\nreturn [\n  {\n    json: {\n      product_url,\n      product_doc_text,\n      product_image_url,\n      brand_name,\n      target_audience,\n      cta,\n      category: 'skincare',\n      ad_style,\n      model_preference,\n      generation_mode,\n      scene_limit,\n      request_id: Date.now().toString()\n    }\n  }\n];"
+      },
+      "id": "14425b9d-cf1f-44c7-85d5-767a426741ff",
+      "name": "2. Normalize Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3360,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.product_url}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "50197ccf-997a-4937-8fdb-f139e24f7536",
+      "name": "3. Fetch Product URL Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3584,
+        -64
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_YOUR_OPENAI_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  model: \"gpt-5.5\",\n  input: `You are an expert skincare advertising strategist, high-converting performance copywriter, and commercial film director.\n\nYour task is to create a cost-efficient but premium Instagram Reel ad plan for a skincare product.\n\nReturn ONLY valid JSON. Do NOT include markdown, explanations, or extra text.\n\nSTRICT JSON FORMAT:\n{\n  \"product_summary\": \"\",\n  \"key_benefits\": [],\n  \"claim_safety_notes\": [],\n  \"ad_concept\": \"\",\n  \"voiceover_script\": \"\",\n  \"caption_text\": \"\",\n  \"overlay_texts\": [],\n  \"scenes\": [\n    {\n      \"scene_number\": 1,\n      \"duration\": 5,\n      \"scene_title\": \"\",\n      \"video_prompt\": \"\"\n    }\n  ],\n  \"final_cta\": \"\"\n}\n\nRULES:\n1. This is ONLY for skincare products.\n2. Use ONLY the given product information. Do NOT invent ingredients, certifications, clinical results, discounts, or claims.\n3. Avoid medical or disease-treatment claims unless explicitly present.\n4. Each scene must be visually simple and cost-efficient.\n5. Scene count MUST be exactly 5.\n6. Each scene duration MUST be 5 seconds.\n7. Scene 5 MUST be product packshot with CTA.\n8. Follow the model preference strictly.\n9. Do not show the model's full face in more than ONE scene. To maintain visual consistency, use hands, side angles, over-the-shoulder shots, mirror blur, product close-ups, texture shots, and packshots in the other scenes.\n10. If Model Preference is \"No model (product only)\", keep all scenes product-only.\n11. If Model Preference is \"Let AI decide\", choose the most conversion-friendly option, but still avoid showing a clear full face in more than one scene.\n\nSCRIPT QUALITY RULES:\n1. The voiceover must sound like a premium beauty ad, not a generic product explainer.\n2. Make the product feel desirable, trustworthy, and easy to include in the daily routine.\n3. Use specific product benefits from the input wherever available.\n4. Avoid exaggerated claims, but make the product sound genuinely compelling.\n5. Use emotional triggers: confidence, comfort, glow, ease, self-care, daily ritual, and premium skincare.\n6. The first line must hook attention in the first 3 seconds.\n7. Write like a high-converting Instagram ad for Indian skincare buyers.\n8. Avoid boring phrases like \"this product is good\", \"try it today\", \"perfect for you\", or generic filler.\n9. Voiceover must be 20-30 seconds, persuasive, premium, emotionally appealing, and conversion-focused.\n\nVIDEO PROMPT RULE:\nEach video_prompt MUST follow this structure:\n\"vertical 9:16, hyper-realistic skincare commercial, preserve exact product packaging from reference image, do not redesign label or bottle, [scene description], [lighting], [camera movement], [environment], premium aesthetic\"\n\nSCENE DESIGN RULE:\nScene 1 may show a model if appropriate. Scenes 2-4 should mostly use product, hands, texture, partial face, side profile, mirror blur, or over-the-shoulder angles. Scene 5 must be a clean hero packshot.\n\nINPUT:\nBrand Name: ${$('2. Normalize Inputs').item.json.brand_name}\nTarget Audience: ${$('2. Normalize Inputs').item.json.target_audience}\nCTA: ${$('2. Normalize Inputs').item.json.cta}\nAd Style: ${$('2. Normalize Inputs').item.json.ad_style}\nModel Preference: ${$('2. Normalize Inputs').item.json.model_preference}\nGeneration Mode: ${$('2. Normalize Inputs').item.json.generation_mode}\nProduct Details: ${$('2. Normalize Inputs').item.json.product_doc_text}\nProduct URL Content: ${String($json.data || '').slice(0, 9000)}`\n}\n}}",
+        "options": {}
+      },
+      "id": "4409b4ef-9b81-4c54-a525-cc88373bba82",
+      "name": "4. AI Creative Brain",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3808,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let rawResponse = '';\n\nif (Array.isArray($json.output)) {\n  for (const outputItem of $json.output) {\n    if (Array.isArray(outputItem.content)) {\n      const textItem = outputItem.content.find(c => c.type === 'output_text' && c.text);\n      if (textItem) {\n        rawResponse = textItem.text;\n        break;\n      }\n    }\n  }\n}\n\nif (!rawResponse) {\n  rawResponse = $json.output_text || $json.text || '';\n}\n\nif (typeof rawResponse !== 'string') {\n  rawResponse = JSON.stringify(rawResponse);\n}\n\nconst cleaned = rawResponse\n  .replace(/```json/g, '')\n  .replace(/```/g, '')\n  .trim();\n\nlet plan;\n\ntry {\n  plan = JSON.parse(cleaned);\n} catch (e) {\n  throw new Error('AI Creative Brain did not return valid JSON: ' + cleaned);\n}\n\nif (!plan.scenes || !Array.isArray(plan.scenes)) {\n  throw new Error('No scenes array found in AI response');\n}\n\nconst sceneLimit = Math.max(1, Math.min(5, Number($('2. Normalize Inputs').item.json.scene_limit || 1)));\nlet scenes = plan.scenes.slice(0, sceneLimit);\n\nwhile (scenes.length < sceneLimit) {\n  scenes.push({\n    scene_number: scenes.length + 1,\n    duration: 5,\n    scene_title: 'Fallback Product Shot',\n    video_prompt:\n      'vertical 9:16, hyper-realistic skincare commercial, preserve exact product packaging from reference image, do not redesign label or bottle, product on clean background, soft lighting, slow push-in camera movement, premium studio environment, premium aesthetic'\n  });\n}\n\nconst productImageUrl = $('2. Normalize Inputs').item.json.product_image_url;\nconst requestId = $('2. Normalize Inputs').item.json.request_id;\n\nreturn scenes.map((scene, index) => {\n  let safePrompt = scene.video_prompt\n    ? scene.video_prompt\n    : 'vertical 9:16, hyper-realistic skincare product shot, preserve exact product packaging from reference image, do not redesign label or bottle, clean aesthetic';\n\n  if (!safePrompt.includes('preserve exact product packaging')) {\n    safePrompt = `vertical 9:16, hyper-realistic skincare commercial, preserve exact product packaging from reference image, do not redesign label or bottle, ${safePrompt}`;\n  }\n\n  return {\n    json: {\n      request_id: requestId,\n      product_image_url: productImageUrl,\n      scene_number: index + 1,\n      duration: 5,\n      scene_title: scene.scene_title || `Scene ${index + 1}`,\n      video_prompt: safePrompt,\n      full_plan: plan,\n      generation_mode: $('2. Normalize Inputs').item.json.generation_mode,\n      scene_limit: sceneLimit\n    }\n  };\n});"
+      },
+      "id": "f52a1ce0-caad-4a67-9f9c-cb667a937485",
+      "name": "5. Split Into 5 Scenes",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4032,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "bytedance/seedance-2.0/image-to-video",
+          "mode": "list",
+          "cachedResultName": "Seedance 2 Image to Video [image-to-video]"
+        },
+        "modelParameters": {
+          "parameters": [
+            {
+              "parameter": "image_url",
+              "value": "={{$json.product_image_url}}"
+            },
+            {
+              "parameter": "aspect_ratio",
+              "value": "9:16"
+            },
+            {
+              "parameter": "resolution",
+              "value": "720p"
+            },
+            {
+              "parameter": "prompt",
+              "value": "={{$json.video_prompt}}"
+            }
+          ]
+        },
+        "options": {
+          "waitForCompletion": true,
+          "pollInterval": 10,
+          "maxWaitTime": 600
+        }
+      },
+      "type": "@fal-ai/n8n-nodes-fal.falAi",
+      "typeVersion": 1,
+      "position": [
+        4256,
+        -64
+      ],
+      "id": "c82a2052-a2c3-409f-b38c-44aeb20a6c92",
+      "name": "6. Generate media using AI model",
+      "credentials": {
+        "falAiApi": {
+          "id": "BesyUgFAewoGCB94",
+          "name": "fal.ai account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{$json.video.url}}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4480,
+        -64
+      ],
+      "id": "18ba020d-62b1-4206-be5b-f663cc1ace8f",
+      "name": "7. HTTP Request"
+    },
+    {
+      "parameters": {
+        "name": "={{\"scene_\" + $(\"5. Split Into 5 Scenes\").item.json.scene_number + \"_\" + $(\"5. Split Into 5 Scenes\").item.json.scene_title.replace(/[^a-zA-Z0-9]/g, \"_\").slice(0, 40) + \"_\" + $(\"5. Split Into 5 Scenes\").item.json.request_id + \".mp4\"}}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1Csh8At4i2yQZKOmjrnDDSUQI6RQI4Fpv",
+          "mode": "list",
+          "cachedResultName": "n8n - Ai Ad Gen",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1Csh8At4i2yQZKOmjrnDDSUQI6RQI4Fpv"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4704,
+        -64
+      ],
+      "id": "aff32c8d-eae1-4c3e-b5c1-f481d01596b8",
+      "name": "8. Upload file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "DYxHP2OTyhSn7mOc",
+          "name": "Google Drive Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst videoUrls = items.map(item => {\n  return item.json.drive_url || item.json.webContentLink || item.json.webViewLink || (item.json.id ? `https://drive.google.com/file/d/${item.json.id}/view` : '');\n}).filter(Boolean);\n\nif (videoUrls.length === 0) {\n  throw new Error('No Google Drive video URLs found');\n}\n\nconst firstItem = items[0].json;\nconst firstPlan = firstItem.full_plan || $('5. Split Into 5 Scenes').first().json.full_plan;\n\nreturn [{\n  json: {\n    request_id: $('2. Normalize Inputs').item.json.request_id,\n    brand_name: $('2. Normalize Inputs').item.json.brand_name,\n    product_image_url: $('2. Normalize Inputs').item.json.product_image_url,\n    generation_mode: $('2. Normalize Inputs').item.json.generation_mode,\n    scene_limit: $('2. Normalize Inputs').item.json.scene_limit,\n    video_urls: videoUrls,\n    full_plan: firstPlan,\n    voiceover_script: firstPlan.voiceover_script,\n    caption_text: firstPlan.caption_text,\n    final_cta: firstPlan.final_cta\n  }\n}];"
+      },
+      "id": "2cdee087-3144-42a7-b1c4-be5d741a0088",
+      "name": "10B. Collect Scene Video URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5152,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "name": "=voiceover-{{$('10B. Collect Scene Video URLs').item.json.request_id}}.mp3",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1Csh8At4i2yQZKOmjrnDDSUQI6RQI4Fpv",
+          "mode": "list",
+          "cachedResultName": "n8n - Ai Ad Gen",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1Csh8At4i2yQZKOmjrnDDSUQI6RQI4Fpv"
+        },
+        "options": {}
+      },
+      "id": "d5cc758d-4770-4607-b11c-103507cb2235",
+      "name": "11. Upload Voiceover to Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5600,
+        -64
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "DYxHP2OTyhSn7mOc",
+          "name": "Google Drive Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const voiceoverDriveFile = $json;\nconst data = $('10B. Collect Scene Video URLs').item.json;\n\nreturn [\n  {\n    json: {\n      status: 'completed_for_review',\n      message: 'MVP output generated. Scene videos and voiceover are saved in Google Drive.',\n      request_id: data.request_id,\n      brand_name: data.brand_name,\n      generation_mode: data.generation_mode,\n      scene_limit: data.scene_limit,\n      product_image_url: data.product_image_url,\n      scene_video_urls: data.video_urls,\n      voiceover_google_drive_response: voiceoverDriveFile,\n      caption_text: data.caption_text,\n      final_cta: data.final_cta,\n      creative_plan: data.full_plan\n    }\n  }\n];"
+      },
+      "id": "b43044c5-47a8-4284-b050-d1e0a64c3d6d",
+      "name": "12. Show Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5824,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "speech",
+        "voice": {
+          "__rl": true,
+          "value": "kvQSb3naDTi3sgHwwBC1",
+          "mode": "id"
+        },
+        "text": "={{$json.voiceover_script}}",
+        "additionalOptions": {
+          "outputFormat": "mp3_44100_128"
+        },
+        "requestOptions": {}
+      },
+      "type": "@elevenlabs/n8n-nodes-elevenlabs.elevenLabs",
+      "typeVersion": 1,
+      "position": [
+        5376,
+        -64
+      ],
+      "id": "03b9a250-bff9-4991-9b15-4c015e72cd0e",
+      "name": "Convert text to speech",
+      "credentials": {
+        "elevenLabsApi": {
+          "id": "V19igvPoDo8B39vy",
+          "name": "ElevenLabs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const upload = $json;\nconst scene = $('5. Split Into 5 Scenes').item.json;\n\nconst driveUrl =\n  upload.webViewLink ||\n  upload.webContentLink ||\n  (upload.id ? `https://drive.google.com/file/d/${upload.id}/view` : '');\n\nconst safeSceneTitle = scene.scene_title || `Scene ${scene.scene_number}`;\n\nreturn [\n  {\n    json: {\n      ...upload,\n      request_id: scene.request_id,\n      scene_number: scene.scene_number,\n      scene_title: safeSceneTitle,\n      product_image_url: scene.product_image_url,\n      drive_url: driveUrl,\n      full_plan: scene.full_plan,\n      telegram_message: `\u2705 Scene ${scene.scene_number} uploaded to Google Drive\\n\\nScene: ${safeSceneTitle}\\nRequest ID: ${scene.request_id}\\nDrive File: ${driveUrl || upload.id || 'Uploaded, but no link returned'}`\n    }\n  }\n];"
+      },
+      "id": "b91150a7-d849-4081-b0d5-141dfd0ff395",
+      "name": "9. Prepare Scene Upload Notification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4928,
+        -64
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{\"https://api.telegram.org/bot\" + ($env.TELEGRAM_BOT_TOKEN || \"PASTE_BOT_TOKEN_HERE\") + \"/sendMessage\"}}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { chat_id: ($env.TELEGRAM_CHAT_ID || \"PASTE_CHAT_ID_HERE\"), text: $json.telegram_message } }}",
+        "options": {}
+      },
+      "id": "69d2641a-b66e-4415-bc1f-60686a57a123",
+      "name": "10. Send Scene Upload Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5152,
+        -240
+      ],
+      "continueOnFail": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "1. Skincare Ad Form": {
+      "main": [
+        [
+          {
+            "node": "2. Normalize Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Normalize Inputs": {
+      "main": [
+        [
+          {
+            "node": "3. Fetch Product URL Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Fetch Product URL Content": {
+      "main": [
+        [
+          {
+            "node": "4. AI Creative Brain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. AI Creative Brain": {
+      "main": [
+        [
+          {
+            "node": "5. Split Into 5 Scenes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "5. Split Into 5 Scenes": {
+      "main": [
+        [
+          {
+            "node": "6. Generate media using AI model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "6. Generate media using AI model": {
+      "main": [
+        [
+          {
+            "node": "7. HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "7. HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "8. Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "8. Upload file": {
+      "main": [
+        [
+          {
+            "node": "9. Prepare Scene Upload Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "11. Upload Voiceover to Google Drive": {
+      "main": [
+        [
+          {
+            "node": "12. Show Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert text to speech": {
+      "main": [
+        [
+          {
+            "node": "11. Upload Voiceover to Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "9. Prepare Scene Upload Notification": {
+      "main": [
+        [
+          {
+            "node": "10. Send Scene Upload Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "10B. Collect Scene Video URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "10. Send Scene Upload Message": {
+      "main": [
+        []
+      ]
+    },
+    "10B. Collect Scene Video URLs": {
+      "main": [
+        [
+          {
+            "node": "Convert text to speech",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ba10ffd3-2bb8-4884-b88d-2f4654c7085c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6950ecbbbeb052ad10e35a4abe396daa22577c41ec2d8a9cd9613785fd1cfbb4"
+  },
+  "id": "4nKDfU5gNVBCbiGG",
+  "tags": []
+}
