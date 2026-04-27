@@ -1,0 +1,609 @@
+{
+  "name": "WhatsApp Makeup AI Recommendation (Built-in Nodes)",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    text: $json.message?.text || null,\n    photo: $json.message?.photo || null,\n    file_id: $json.message?.photo?.slice(-1)[0]?.file_id || null,\n    chat_id: $json.message?.chat?.id\n  }\n}]"
+      },
+      "id": "e549f986-9f12-46ca-be57-75bc77a6e182",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.file_id }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "384defe1-8543-4238-9c1c-de44acd86fc8",
+      "name": "Is Image?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        3024,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/responses",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-5.5\",\n  \"input\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"input_text\",\n          \"text\": \"Analyze the person's visible makeup suitability from the image. Return ONLY valid JSON. Do not include markdown or explanations. Maintain exact facial identity and proportions. Do not alter face structure.Do not diagnose medical conditions. Do not alter identity. Do not make sensitive demographic assumptions. Return this exact schema:\\n\\n{\\n  \\\"skin_tone\\\": \\\"fair | light | medium | tan | deep\\\",\\n  \\\"undertone\\\": \\\"cool | warm | neutral | olive | warm_olive | neutral_olive\\\",\\n  \\\"face_shape\\\": \\\"oval | round | square | heart | diamond | oblong\\\",\\n  \\\"eye_shape\\\": \\\"almond | round | hooded | monolid | deep_set\\\",\\n  \\\"brow_type\\\": \\\"straight | soft_arch | defined_arch | thick_natural | sparse\\\",\\n  \\\"foundation\\\": {\\n    \\\"recommended_undertones\\\": [],\\n    \\\"finish\\\": \\\"dewy | satin | matte | natural\\\",\\n    \\\"coverage\\\": \\\"sheer | light | medium | full\\\"\\n  },\\n  \\\"blush\\\": {\\n    \\\"recommended_families\\\": [],\\n    \\\"placement\\\": \\\"apple_cheeks | high_cheekbone | lifted_outer_cheek\\\"\\n  },\\n  \\\"lip\\\": {\\n    \\\"everyday_families\\\": [],\\n    \\\"glam_families\\\": [],\\n    \\\"finish_types\\\": []\\n  },\\n  \\\"eyes\\\": {\\n    \\\"everyday_soft\\\": [],\\n    \\\"defined_classic\\\": [],\\n    \\\"evening_glam\\\": []\\n  },\\n  \\\"confidence_scores\\\": {\\n    \\\"skin_tone\\\": 0,\\n    \\\"undertone\\\": 0,\\n    \\\"foundation_match\\\": 0,\\n    \\\"blush_match\\\": 0,\\n    \\\"lip_match\\\": 0,\\n    \\\"eye_makeup\\\": 0\\n  }\\n}\"\n        },\n        {\n          \"type\": \"input_image\",\n          \"image_url\": \"data:image/jpeg;base64,{{$json.data}}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "fde44fa2-5580-40fb-8668-30ced94f5fa6",
+      "name": "OpenAI Makeup Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        3920,
+        432
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "r4gbJXE4Gnh6fvvM",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ASwyuVe_qjsafgOO0Pa8uyXIwWR4k7yV8kUyI9b4FJg",
+          "mode": "list",
+          "cachedResultName": "MakeupAnalysis",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ASwyuVe_qjsafgOO0Pa8uyXIwWR4k7yV8kUyI9b4FJg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Products",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ASwyuVe_qjsafgOO0Pa8uyXIwWR4k7yV8kUyI9b4FJg/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "e8393a36-145e-4d85-bd5f-4248c43c5b05",
+      "name": "Get Products",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        5488,
+        528
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const analysis = $json;\nconst products = $input.all().map(i => i.json);\n\nfunction scoreProduct(p) {\n  let score = 0;\n\n  // Skin tone match\n  if (p.skin_tone === analysis.skin_tone || p.skin_tone === 'all') {\n    score += 30;\n  }\n\n  // Undertone match\n  if (p.undertone === analysis.undertone || p.undertone === 'all') {\n    score += 30;\n  }\n\n  // Shade family match (for blush/lip)\n  const shade = (p.shade_family || '').toLowerCase();\n\n  if (\n    analysis.blush?.recommended_families?.some(f =>\n      shade.includes(f.toLowerCase())\n    )\n  ) {\n    score += 20;\n  }\n\n  if (\n    analysis.lip?.everyday_families?.some(f =>\n      shade.includes(f.toLowerCase())\n    )\n  ) {\n    score += 20;\n  }\n\n  // Finish match\n  if (\n    p.finish &&\n    p.finish === analysis.foundation?.finish\n  ) {\n    score += 10;\n  }\n\n  return score;\n}\n\nconst ranked = products\n  .map(p => ({\n    ...p,\n    score: scoreProduct(p)\n  }))\n  .sort((a, b) => b.score - a.score);\n\nconst topProducts = ranked.slice(0, 5);\n\nreturn [{\n  json: {\n    ...analysis,\n    recommendations: topProducts\n  }\n}];"
+      },
+      "id": "06d37c60-bdf7-4f79-ab62-0bd7a3798546",
+      "name": "Match Products",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5712,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        2576,
+        528
+      ],
+      "id": "67edd60d-594d-47c0-8343-3c1888fe71b7",
+      "name": "Telegram Trigger",
+      "webhookId": "b9cc1a4d-f533-455e-920a-39727ae8e918",
+      "credentials": {
+        "telegramApi": {
+          "id": "XCXqhM2k5WTx2xEz",
+          "name": "Telegram Zosskinbot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $('Is Image?').item.json.photo[0].file_id }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3472,
+        432
+      ],
+      "id": "3b67ca7f-ed6a-4efa-9b54-a451e8ebbad9",
+      "name": "Get a file",
+      "webhookId": "39c0c02c-0008-441c-a074-f21f3e5ffad7",
+      "credentials": {
+        "telegramApi": {
+          "id": "XCXqhM2k5WTx2xEz",
+          "name": "Telegram Zosskinbot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json.chat_id}}",
+        "text": "Please share a clear front face selfie for make up analysis",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3248,
+        624
+      ],
+      "id": "2cff434c-6e64-46e2-9fc4-0f4afec40b45",
+      "name": "Send a text message",
+      "webhookId": "7622be7f-49aa-454d-8498-7cf9ca7cb565",
+      "credentials": {
+        "telegramApi": {
+          "id": "XCXqhM2k5WTx2xEz",
+          "name": "Telegram Zosskinbot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "binaryData": true,
+        "additionalFields": {
+          "caption": "Your AI makeup analysis is ready ✨. Your personalised recommendations shall be shared now"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        5264,
+        528
+      ],
+      "id": "4e1d3cf2-cd5f-48fe-92cb-c26de5866b90",
+      "name": "Send a photo message",
+      "webhookId": "f2224962-d145-47db-9f6b-4e16ffa1f8e3",
+      "credentials": {
+        "telegramApi": {
+          "id": "XCXqhM2k5WTx2xEz",
+          "name": "Telegram Zosskinbot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Send a photo message').item.json.result.chat.id }}",
+        "text": "={{ $json.message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        6160,
+        528
+      ],
+      "id": "f858565d-3718-4126-8b89-dc21186cfe2d",
+      "name": "Send a text message1",
+      "webhookId": "3c6c4de9-e53b-49e4-98a0-c603b2bb191e",
+      "credentials": {
+        "telegramApi": {
+          "id": "XCXqhM2k5WTx2xEz",
+          "name": "Telegram Zosskinbot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "binaryToPropery",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        3696,
+        432
+      ],
+      "id": "776c6937-a43f-4a03-8d51-9ac1101e81c4",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const messageOutput = ($json.output || []).find(\n  item => item.type === 'message' && item.content?.length\n);\n\nconst text =\n  messageOutput?.content?.find(c => c.type === 'output_text')?.text ||\n  $json.output_text;\n\nif (!text) {\n  throw new Error('No analysis text found from OpenAI');\n}\n\nconst cleaned = text\n  .replace(/```json/g, '')\n  .replace(/```/g, '')\n  .trim();\n\nconst parsed = JSON.parse(cleaned);\n\nreturn [\n  {\n    json: {\n      ...parsed\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4144,
+        432
+      ],
+      "id": "df9825e6-f9ed-46af-ab11-2d20286955a5",
+      "name": "Parse Analysis1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const a = $json;\n\nconst prompt = `\nCreate a premium, dermatology-grade makeup analysis infographic using the provided portrait.\n\nSTRICT REQUIREMENTS:\n- Preserve exact facial identity, proportions, and skin texture.\n- No beautification.\n- No face alteration.\n- Maintain realistic lighting and natural skin details.\n- Use the SAME face consistently across all sections and variations.\n\nLAYOUT:\n- Center: High-resolution portrait with neutral clinical lighting.\n- Surrounding: Structured UI cards in a clean grid layout.\n- No clutter.\n- No overlapping elements.\n\nSTYLE:\n- Luxury dermatology + editorial beauty aesthetic.\n- Color palette: soft beige, ivory, muted rose, charcoal accents.\n- Typography: clean, modern, minimal.\n- UI: rounded cards, subtle shadows, thin dividers.\n\nCONTENT SECTIONS:\n\n1. SKIN & FEATURE SUMMARY\n- Skin tone: ${a.skin_tone}\n- Undertone: ${a.undertone}\n- Face shape: ${a.face_shape}\n- Eye shape: ${a.eye_shape}\n- Brow type: ${a.brow_type}\n\n2. FOUNDATION MATCH\n- Recommended undertones: ${(a.foundation?.recommended_undertones || []).join(', ')}\n- Finish: ${a.foundation?.finish}\n- Coverage: ${a.foundation?.coverage}\n\n3. BLUSH RECOMMENDATIONS\n- Shades: ${(a.blush?.recommended_families || []).join(', ')}\n- Placement: ${a.blush?.placement}\n\n4. LIP COLORS\n- Everyday: ${(a.lip?.everyday_families || []).join(', ')}\n- Glam: ${(a.lip?.glam_families || []).join(', ')}\n- Finish: ${(a.lip?.finish_types || []).join(', ')}\n\n5. BROW STYLING\n- Shape: ${a.brow_type}\n- Finish: Natural / Defined / Feathered\n\n6. EYE MAKEUP LOOKS\n- Everyday Soft: ${(a.eyes?.everyday_soft || []).join(', ')}\n- Defined Classic: ${(a.eyes?.defined_classic || []).join(', ')}\n- Evening Glam: ${(a.eyes?.evening_glam || []).join(', ')}\n\n7. SCORES\nShow score bars from 0 to 100:\n- Skin Tone: ${a.confidence_scores?.skin_tone}\n- Undertone: ${a.confidence_scores?.undertone}\n- Foundation Match: ${a.confidence_scores?.foundation_match}\n- Blush Match: ${a.confidence_scores?.blush_match}\n- Lip Match: ${a.confidence_scores?.lip_match}\n- Eye Makeup: ${a.confidence_scores?.eye_makeup}\n\nVISUAL RULES:\n- Use subtle annotation lines only where needed.\n- No exaggerated effects.\n- No cartoon styling.\n- No stock icons.\n- Short text only.\n- High-resolution infographic poster.\n- Balanced spacing, symmetrical layout.\n- Clean, structured, premium finish.\n`;\n\nreturn [{\n  json: {\n    chat_id: a.chat_id,\n    prompt,\n    original_image_base64: a.original_image_base64\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4368,
+        432
+      ],
+      "id": "5abbf0b6-a43d-4752-906a-edfc06a3d0ea",
+      "name": "Build Infographic Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/images/edits",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "gpt-image-1"
+            },
+            {
+              "name": "prompt",
+              "value": "={{$json.prompt}}"
+            },
+            {
+              "name": "size",
+              "value": "1024x1536"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "image",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4816,
+        528
+      ],
+      "id": "2877e1ac-7437-41c4-89f6-8fcbaba37c68",
+      "name": "OpenAI Infographic Image",
+      "credentials": {
+        "openAiApi": {
+          "id": "r4gbJXE4Gnh6fvvM",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const originalBinary = $('Get a file').first().binary?.data;\n\nif (!originalBinary) {\n  throw new Error('No binary image found from Get a file node');\n}\n\nreturn [{\n  json: {\n    chat_id: $json.chat_id,\n    prompt: $json.prompt\n  },\n  binary: {\n    data: originalBinary\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4592,
+        432
+      ],
+      "id": "735f3e15-1e6c-4bea-8527-2b7c11d8a609",
+      "name": "Prepare Image File"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b64 = $json.data?.[0]?.b64_json;\n\nif (!b64) {\n  throw new Error('No generated image found in OpenAI response');\n}\n\nreturn [{\n  json: {\n    chat_id: $('Build Infographic Prompt').first().json.chat_id\n  },\n  binary: {\n    data: {\n      data: b64,\n      mimeType: 'image/png',\n      fileName: 'makeup-infographic.png'\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5040,
+        528
+      ],
+      "id": "f937bbfa-a212-4d08-9ddf-96108940c79c",
+      "name": "Generated Image Base64 → Binary"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "Your shared image is received. We shall not analyse it",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3248,
+        432
+      ],
+      "id": "0e70b74b-132b-4e9f-b933-ad911bd6966b",
+      "name": "got selfie- msg",
+      "webhookId": "89ab2d93-614e-413a-8a2f-3702d8c142ca",
+      "credentials": {
+        "telegramApi": {
+          "id": "XCXqhM2k5WTx2xEz",
+          "name": "Telegram Zosskinbot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('got selfie- msg').item.json.result.chat.id }}",
+        "text": "Your analysis is complete. Your infographic is now being generated. This might take 2-3 min",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4816,
+        336
+      ],
+      "id": "29ec2f44-2b2e-4c8f-9c8c-904cae67dad7",
+      "name": "Infographic is being gen - msg",
+      "webhookId": "15620d24-eedc-48b5-adbd-84c7fcf59949",
+      "credentials": {
+        "telegramApi": {
+          "id": "XCXqhM2k5WTx2xEz",
+          "name": "Telegram Zosskinbot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map(i => i.json);\n\nif (!items.length) {\n  return [{\n    json: {\n      chat_id: $('Send a photo message').first().json.result.chat.id,\n      message: `✨ Your makeup analysis is ready.\\n\\nWe could not find matching products right now. Please try again later.`\n    }\n  }];\n}\n\nconst top = items\n  .filter(p => String(p.Status || '').toLowerCase() === 'active')\n  .sort((a, b) => Number(b.priority_score || 0) - Number(a.priority_score || 0))\n  .slice(0, 5);\n\nconst grouped = {\n  foundation: top.filter(p => p.match_category === 'foundation').slice(0, 1),\n  blush: top.filter(p => p.match_category === 'blush').slice(0, 1),\n  lip: top.filter(p => p.match_category === 'lip').slice(0, 2),\n  eyes: top.filter(p => p.match_category === 'eyes').slice(0, 1),\n  brow: top.filter(p => p.match_category === 'brow').slice(0, 1),\n};\n\nfunction line(p, label) {\n  return `${label}\\n${p.Title}\\n₹${p['Variant Price']}\\nWhy: ${p.match_undertone} undertone + ${p.match_shade_family}\\nBuy: ${p['Product URL']}`;\n}\n\nlet message = `✨ Your personalized makeup picks are ready\\n\\nBased on your makeup analysis, these products are the best fit from the brand catalogue:\\n`;\n\nif (grouped.foundation.length) {\n  message += `\\n\\n🧴 FOUNDATION\\n${line(grouped.foundation[0], 'Best base match')}`;\n}\n\nif (grouped.blush.length) {\n  message += `\\n\\n🌸 BLUSH\\n${line(grouped.blush[0], 'Best cheek color')}`;\n}\n\nif (grouped.lip.length) {\n  message += `\\n\\n💄 LIPS\\n${grouped.lip.map((p, i) => line(p, i === 0 ? 'Everyday pick' : 'Glam pick')).join('\\n\\n')}`;\n}\n\nif (grouped.eyes.length) {\n  message += `\\n\\n👁️ EYES\\n${line(grouped.eyes[0], 'Best eye look match')}`;\n}\n\nif (grouped.brow.length) {\n  message += `\\n\\n🤎 BROWS\\n${line(grouped.brow[0], 'Best brow product')}`;\n}\n\nmessage += `\\n\\nTap the links to view products. Shade matching is AI-assisted, so check shade swatches before purchase.`;\n\nreturn [{\n  json: {\n    chat_id: $('Send a photo message').first().json.result.chat.id,\n    message\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        5936,
+        528
+      ],
+      "id": "bd2fe785-40e9-4429-bccb-48f1903124a7",
+      "name": "Build Recommendation Message"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Is Image?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Image?": {
+      "main": [
+        [
+          {
+            "node": "got selfie- msg",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Makeup Analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse Analysis1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Products": {
+      "main": [
+        [
+          {
+            "node": "Match Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Products": {
+      "main": [
+        [
+          {
+            "node": "Build Recommendation Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a photo message": {
+      "main": [
+        [
+          {
+            "node": "Get Products",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Makeup Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Analysis1": {
+      "main": [
+        [
+          {
+            "node": "Build Infographic Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Infographic Prompt": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Infographic Image": {
+      "main": [
+        [
+          {
+            "node": "Generated Image Base64 → Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Image File": {
+      "main": [
+        [
+          {
+            "node": "Infographic is being gen - msg",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OpenAI Infographic Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generated Image Base64 → Binary": {
+      "main": [
+        [
+          {
+            "node": "Send a photo message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "got selfie- msg": {
+      "main": [
+        [
+          {
+            "node": "Get a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Infographic is being gen - msg": {
+      "main": [
+        []
+      ]
+    },
+    "Build Recommendation Message": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "9304af80-1790-43d0-88c8-117cde5b6902",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6950ecbbbeb052ad10e35a4abe396daa22577c41ec2d8a9cd9613785fd1cfbb4"
+  },
+  "id": "5HO3qQBSKJwmsl4h",
+  "tags": []
+}
