@@ -1,0 +1,2275 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const source = $('Classify User Intent1').item.json;\nreturn [{ json: { ...$json, user_id: source.user_id, telegram_user_id: source.telegram_user_id, chat_id: source.chat_id, user_name: source.user_name, intent: source.intent, reply_text: source.reply_text, related_product_id: source.related_product_id, related_claim_id: source.related_claim_id, bot_waiting_for: source.bot_waiting_for, current_step: source.current_step, status: 'state_updated' } }];"
+      },
+      "id": "de1ca787-fb9d-4761-a53d-736da95cc13f",
+      "name": "Prepare Telegram Reply - State Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        8608
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Classify User Intent1').item.json;\nreturn [{ json: { ...$json, user_id: source.user_id, telegram_user_id: source.telegram_user_id, chat_id: source.chat_id, user_name: source.user_name, intent: source.intent, reply_text: source.reply_text, claim_id: source.claim_id, related_claim_id: source.related_claim_id || source.claim_id, related_product_id: source.related_product_id, issue_description: source.issue_description, claim_email_to: source.claim_email_to, claim_email_subject: source.claim_email_subject, claim_email_body: source.claim_email_body, bot_waiting_for: source.bot_waiting_for, current_step: source.current_step, status: 'claim_draft_created' } }];"
+      },
+      "id": "fe173c07-d7f8-419e-a0ce-b76d20f7fa57",
+      "name": "Prepare Telegram Reply - Claim Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        8800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Classify User Intent1').item.json;\nreturn [{ json: { user_id: source.user_id, telegram_user_id: source.telegram_user_id, chat_id: source.chat_id, user_name: source.user_name, intent: source.intent, claim_id: source.claim_id, related_claim_id: source.related_claim_id || source.claim_id, related_product_id: source.related_product_id, claim_status: source.claim_status, user_approval_status: source.user_approval_status, reply_text: source.reply_text, updated_at: source.updated_at, status: 'approved_for_sending' } }];"
+      },
+      "id": "1fe600b0-3f9c-4a2d-8119-8c0dadb3420a",
+      "name": "Prepare Send Email Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        8992
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Classify User Intent1').item.json;\nreturn [{ json: { ...$json, user_id: source.user_id, telegram_user_id: source.telegram_user_id, chat_id: source.chat_id, user_name: source.user_name, intent: source.intent, reply_text: source.reply_text, claim_id: source.claim_id, related_claim_id: source.related_claim_id, related_product_id: source.related_product_id, status: 'claim_cancelled' } }];"
+      },
+      "id": "f45b6679-125d-4750-aa8c-3a99b850235f",
+      "name": "Prepare Telegram Reply - Cancel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        9184
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const source = $('Classify User Intent1').item.json;\nreturn [{ json: { ...$json, user_id: source.user_id, telegram_user_id: source.telegram_user_id, chat_id: source.chat_id, user_name: source.user_name, intent: source.intent, reply_text: source.reply_text || 'Email saved. I will CC this email when sending approved claim emails.', user_email: source.user_email, status: 'email_saved' } }];"
+      },
+      "id": "e274995f-0312-4e26-96c8-23b027d31246",
+      "name": "Prepare Telegram Reply - Email Saved",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -752,
+        9568
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {
+          "download": true
+        }
+      },
+      "id": "2b8bd144-e119-4f19-8e2a-4a5d6d8743e5",
+      "name": "Telegram Trigger1",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2768,
+        8992
+      ],
+      "webhookId": "bd4d0297-d8e0-430e-acc8-9204c11310a9",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $json;\nconst message = update.message || update.edited_message || {};\nconst from = message.from || {};\nconst chat = message.chat || {};\nconst document = message.document;\nconst photos = message.photo || [];\n\nconst text = String(message.text || message.caption || '').trim();\nconst normalized = text.toLowerCase().replace(/\\s+/g, ' ');\n\nlet incoming_type = 'text';\nlet has_file = false;\nlet file_id = null;\nlet file_name = null;\nlet file_type = null;\nlet mime_type = null;\n\nif (document) {\n  incoming_type = 'document';\n  has_file = true;\n  file_id = document.file_id || null;\n  file_name = document.file_name || `telegram-document-${message.message_id || Date.now()}`;\n  file_type = 'document';\n  mime_type = document.mime_type || null;\n} else if (photos.length > 0) {\n  incoming_type = 'photo';\n  has_file = true;\n  const photo = photos[photos.length - 1];\n  file_id = photo.file_id || null;\n  file_name = `telegram-photo-${message.message_id || Date.now()}.jpg`;\n  file_type = 'image';\n  mime_type = 'image/jpeg';\n}\n\nreturn [{\n  json: {\n    user_id: String(from.id || ''),\n    telegram_user_id: from.id,\n    chat_id: chat.id,\n    user_name: [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || 'Telegram User',\n    message_text: text,\n    normalized_text: normalized,\n    has_text: Boolean(text),\n    incoming_type,\n    has_file,\n    file_id,\n    file_name,\n    file_type,\n    mime_type,\n    received_at: new Date().toISOString()\n  },\n  binary: $binary\n}];"
+      },
+      "id": "46683fc1-3026-4f60-8888-0324d0e0dcbd",
+      "name": "Normalize Telegram Message1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2544,
+        8992
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE",
+          "mode": "list",
+          "cachedResultName": "ClaimMate_MVP_Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1609649704,
+          "mode": "list",
+          "cachedResultName": "Conversation_State",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit#gid=1609649704"
+        },
+        "options": {}
+      },
+      "id": "a6a64695-a82c-4299-b52c-e80d7a26ffea",
+      "name": "Read Conversation_State tab1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2320,
+        8992
+      ],
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function norm(value) {\n  return String(value || '')\n    .toLowerCase()\n    .replace(/[^a-z0-9@._+-]+/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nfunction hasAny(text, phrases) {\n  const normalizedText = norm(text);\n  return phrases.some((phrase) => {\n    const p = norm(phrase);\n    return normalizedText === p || normalizedText.includes(p);\n  });\n}\n\nfunction isOnlyGreeting(text, greetingPhrases) {\n  const t = norm(text);\n  return greetingPhrases.some((g) => t === norm(g));\n}\n\nfunction nowIso() {\n  return new Date().toISOString();\n}\n\nfunction extractEmail(value) {\n  const match = String(value || '').match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i);\n  return match ? match[0].toLowerCase() : '';\n}\n\nfunction isEmailCaptureRequest(text, normalizedText) {\n  const raw = String(text || '');\n  const normalized = String(normalizedText || '');\n\n  return /^\\/setemail\\b/i.test(raw)\n    || /\\bmy email is\\b/i.test(raw)\n    || /^email\\b/i.test(normalized)\n    || (/^use\\b/i.test(normalized) && raw.includes('@'));\n}\n\nfunction makeClaimId() {\n  return `claim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;\n}\n\nfunction rowUserId(row) {\n  return String(\n    row.User_ID ||\n    row.user_id ||\n    row.Telegram_ID ||\n    row.telegram_user_id ||\n    ''\n  ).trim();\n}\n\nfunction productLabel(product, index) {\n  return [\n    `${index + 1}. ${product.Product_Name || 'Unnamed product'}`,\n    `Brand: ${product.Brand || 'Not found'}`,\n    `Warranty Valid Till: ${product.Warranty_Expiry_Date || 'Unknown'}`,\n    `Status: ${product.Warranty_Status || 'Unknown'}`,\n    `Invoice Number: ${product.Invoice_Number || 'Not found'}`\n  ].join('\\n');\n}\n\nfunction compactProduct(product, index) {\n  return `${index + 1}. ${product.Product_Name || 'Unnamed product'} - ${product.Brand || 'Not found'} - ${product.Warranty_Status || 'Unknown'}`;\n}\n\nfunction parseStateDate(row) {\n  const raw = String(\n    row.Last_Updated ||\n    row.Updated_At ||\n    row.Created_At ||\n    row.created_at ||\n    ''\n  ).trim();\n\n  if (!raw) return 0;\n\n  const isoParsed = new Date(raw);\n  if (!Number.isNaN(isoParsed.getTime())) return isoParsed.getTime();\n\n  const dmyTime = raw.match(/^(\\d{1,2})[-/](\\d{1,2})[-/](\\d{4})(?:\\s+(\\d{1,2}):(\\d{2}))?/);\n  if (dmyTime) {\n    const parsed = new Date(\n      Number(dmyTime[3]),\n      Number(dmyTime[2]) - 1,\n      Number(dmyTime[1]),\n      Number(dmyTime[4] || 0),\n      Number(dmyTime[5] || 0)\n    );\n\n    if (!Number.isNaN(parsed.getTime())) return parsed.getTime();\n  }\n\n  return 0;\n}\n\nfunction getLatestState(stateRows) {\n  if (!stateRows.length) return {};\n\n  const withIndex = stateRows.map((row, index) => ({\n    row,\n    index,\n    ts: parseStateDate(row)\n  }));\n\n  return withIndex\n    .sort((a, b) => {\n      if (b.ts !== a.ts) return b.ts - a.ts;\n      return b.index - a.index;\n    })[0].row;\n}\n\nfunction getNodeJson(nodeNames) {\n  for (const nodeName of nodeNames) {\n    try {\n      const nodeData = $node[nodeName]?.json;\n      if (nodeData && Object.keys(nodeData).length > 0) return nodeData;\n    } catch (error) {\n      // Try next node name\n    }\n  }\n\n  return {};\n}\n\nfunction getItemsFromFirstAvailableNode(nodeNames) {\n  for (const nodeName of nodeNames) {\n    try {\n      const items = $items(nodeName);\n      if (Array.isArray(items)) {\n        return items.map((item) => item.json || {});\n      }\n    } catch (error) {\n      // Try next possible node name\n    }\n  }\n\n  return [];\n}\n\nfunction matchProducts(products, messageText) {\n  const normalizedMessage = norm(messageText);\n\n  const stop = [\n    'claim',\n    'warranty',\n    'raise',\n    'replacement',\n    'repair',\n    'not',\n    'working',\n    'issue',\n    'with',\n    'problem',\n    'my',\n    'the',\n    'for',\n    'please',\n    'product',\n    'want',\n    'to',\n    'i'\n  ];\n\n  const terms = normalizedMessage\n    .split(' ')\n    .filter((term) => term.length >= 2 && !stop.includes(term));\n\n  return products\n    .map((product) => {\n      const productName = norm(product.Product_Name);\n      const brand = norm(product.Brand);\n      const category = norm(product.Category);\n      const seller = norm(product.Seller);\n      const invoice = norm(product.Invoice_Number);\n\n      const haystack = [productName, brand, category, seller, invoice]\n        .filter(Boolean)\n        .join(' ');\n\n      let score = 0;\n\n      if (productName && normalizedMessage.includes(productName)) score += 8;\n      if (invoice && normalizedMessage.includes(invoice)) score += 8;\n      if (brand && normalizedMessage.includes(brand)) score += 4;\n      if (category && normalizedMessage.includes(category)) score += 1;\n\n      for (const term of terms) {\n        if (productName.split(' ').includes(term)) score += 3;\n        else if (brand.split(' ').includes(term)) score += 3;\n        else if (haystack.includes(term)) score += 1;\n      }\n\n      return { product, score };\n    })\n    .filter((entry) => entry.score > 0)\n    .sort((a, b) => b.score - a.score);\n}\n\nfunction coverageText(product, issue) {\n  const category = product.Category || 'product';\n  const status = product.Warranty_Status || 'Unknown';\n  const issueText = norm(issue);\n\n  const accidentalTerms = [\n    'broken',\n    'crack',\n    'cracked',\n    'water',\n    'liquid',\n    'dropped',\n    'physical damage',\n    'burnt',\n    'burn',\n    'accident'\n  ];\n\n  const accidental = accidentalTerms.some((term) =>\n    issueText.includes(norm(term))\n  );\n\n  if (accidental) {\n    return `This may not be covered if it is accidental or physical damage. Since the ${category} warranty status is ${status}, it may still be worth asking support to review it.`;\n  }\n\n  if (status === 'Active' || status === 'Expiring Soon') {\n    return `This appears likely to be worth raising as a warranty claim based on the ${category} warranty status: ${status}.`;\n  }\n\n  return `This may be difficult to claim because the warranty status is ${status}. You can still ask support to confirm.`;\n}\n\nfunction buildClaimEmailBody(product, issue) {\n  return [\n    'Dear Support Team,',\n    '',\n    'I would like to raise a warranty claim for the following product:',\n    '',\n    `Product Name: ${product.Product_Name || ''}`,\n    `Brand: ${product.Brand || ''}`,\n    `Category: ${product.Category || ''}`,\n    `Invoice Number: ${product.Invoice_Number || ''}`,\n    `Purchase Date: ${product.Purchase_Date || ''}`,\n    `Seller: ${product.Seller || ''}`,\n    `Warranty Valid Till: ${product.Warranty_Expiry_Date || ''}`,\n    '',\n    'Issue:',\n    issue,\n    '',\n    'The product may be eligible for warranty support based on the saved warranty information. Please review the request and guide me on the next steps for repair, replacement, or service under warranty.',\n    '',\n    'Regards'\n  ].join('\\n');\n}\n\nfunction isValidIssueDescription(text, greetingPhrases) {\n  const clean = String(text || '').trim();\n\n  if (!clean) return false;\n  if (isOnlyGreeting(clean, greetingPhrases)) return false;\n  if (clean.length < 12) return false;\n\n  return true;\n}\n\n// MAIN INPUT\nconst input = getNodeJson([\n  'Normalize Telegram Message',\n  'Normalize Telegram Message1',\n  'Normalize Telegram Message2',\n  'Normalize Telegram Message3'\n]);\n\nconst userId = String(input.user_id || input.telegram_user_id || '').trim();\nconst telegramUserId = String(input.telegram_user_id || input.user_id || userId || '').trim();\nconst chatId = String(input.chat_id || '').trim();\nconst text = String(input.message_text || '').trim();\nconst ntext = String(input.normalized_text || norm(text)).trim();\n\n// SHEET ROWS\nconst stateRows = getItemsFromFirstAvailableNode([\n  'Read Conversation_State tab',\n  'Read Conversation_State tab1',\n  'Read Conversation_State tab2',\n  'Read Conversation_State tab3'\n]).filter((row) => rowUserId(row) === userId);\n\nconst products = getItemsFromFirstAvailableNode([\n  'Read Products tab',\n  'Read Products tab1',\n  'Read Products tab2',\n  'Read Products tab3'\n]).filter((row) => rowUserId(row) === userId);\n\nconst claims = getItemsFromFirstAvailableNode([\n  'Read Claims tab',\n  'Read Claims tab1',\n  'Read Claims tab2',\n  'Read Claims tab3'\n]).filter((row) => rowUserId(row) === userId);\n\nconst state = getLatestState(stateRows);\n\nconst waitingFor = String(state.Bot_Waiting_For || '').trim();\nconst relatedProductId = String(state.Related_Product_ID || '').trim();\nconst relatedClaimId = String(state.Related_Claim_ID || '').trim();\n\nconst productById = products.find((product) =>\n  String(product.Product_ID || '').trim() === relatedProductId\n);\n\nlet intent = 'unknown';\nlet route_index = 0;\nlet reply_text = '';\n\nlet claim_id = relatedClaimId || '';\nlet claim_status = '';\nlet user_approval_status = '';\n\nlet related_product_id = relatedProductId || '';\nlet related_claim_id = relatedClaimId || '';\n\nlet bot_waiting_for = '';\nlet current_step = '';\nlet next_action = '';\nlet notes = '';\n\nlet issue_description = '';\nlet claim_email_to = '';\nlet claim_email_subject = '';\nlet claim_email_body = '';\nlet user_email = '';\n\nconst approvalPhrases = ['send', 'approve', 'yes send', 'confirm send'];\nconst cancelPhrases = ['cancel', 'stop', 'do not send'];\nconst helpPhrases = ['/start', 'help', 'what can you do', 'how does this work'];\nconst uploadPhrases = [\n  'how to upload bill',\n  'what format',\n  'can i send pdf',\n  'upload invoice',\n  'upload bill',\n  'send pdf'\n];\nconst warrantyPhrases = ['show my warranties', 'my warranties', 'my products', '/mywarranties'];\nconst claimStatusPhrases = ['show my claims', 'claim status', 'status of my claim'];\nconst followupPhrases = ['follow up', 'send follow up', 'any update'];\nconst claimPhrases = [\n  'warranty claim',\n  'raise claim',\n  'replacement',\n  'repair',\n  'not working',\n  'issue with',\n  'problem with',\n  'claim'\n];\nconst greetingPhrases = ['hi', 'hii', 'hey', 'hello', 'yo', 'ok', 'okay', 'thanks', 'thank you'];\n\nconst extractedEmail = extractEmail(text);\nconst emailCaptureRequested = isEmailCaptureRequest(text, ntext);\n\n// INTENT DETECTION\nif (input.has_file) {\n  intent = 'document_upload';\n  route_index = 5;\n  reply_text = 'Processing your document now.';\n} else if (emailCaptureRequested) {\n  intent = 'email_capture';\n  user_email = extractedEmail;\n\n  if (user_email) {\n    route_index = 6;\n    reply_text = 'Email saved. I will CC this email when sending approved claim emails.';\n  } else {\n    route_index = 0;\n    reply_text = 'Please send your email like this: /setemail yourname@example.com';\n  }\n} else if (!input.has_text) {\n  intent = 'upload_guidance';\n} else if (\n  waitingFor === 'claim_approval' &&\n  hasAny(ntext, approvalPhrases)\n) {\n  intent = 'claim_approval';\n} else if (\n  waitingFor === 'claim_approval' &&\n  hasAny(ntext, cancelPhrases)\n) {\n  intent = 'claim_cancel';\n} else if (\n  waitingFor === 'claim_approval' &&\n  input.has_text &&\n  !hasAny(ntext, approvalPhrases) &&\n  !hasAny(ntext, cancelPhrases)\n) {\n  intent = 'awaiting_claim_approval_response';\n} else if (\n  waitingFor === 'issue_description' &&\n  input.has_text &&\n  !hasAny(ntext, helpPhrases) &&\n  !hasAny(ntext, cancelPhrases) &&\n  isValidIssueDescription(text, greetingPhrases)\n) {\n  intent = 'issue_description';\n} else if (\n  waitingFor === 'issue_description' &&\n  input.has_text &&\n  !isValidIssueDescription(text, greetingPhrases)\n) {\n  intent = 'invalid_issue_description';\n} else if (hasAny(ntext, cancelPhrases)) {\n  intent = 'claim_cancel';\n} else if (hasAny(ntext, helpPhrases)) {\n  intent = 'help';\n} else if (hasAny(ntext, uploadPhrases)) {\n  intent = 'upload_guidance';\n} else if (hasAny(ntext, warrantyPhrases)) {\n  intent = 'warranty_lookup';\n} else if (hasAny(ntext, claimStatusPhrases)) {\n  intent = 'claim_status';\n} else if (hasAny(ntext, followupPhrases)) {\n  intent = 'follow_up_request';\n} else if (hasAny(ntext, approvalPhrases)) {\n  intent = 'claim_approval';\n} else if (hasAny(ntext, claimPhrases)) {\n  intent = 'claim_request';\n} else if (isOnlyGreeting(text, greetingPhrases)) {\n  intent = 'help';\n}\n\n// INTENT HANDLING\nif (intent === 'document_upload') {\n  reply_text = reply_text || 'Processing your document now.';\n} else if (intent === 'help') {\n  reply_text = [\n    'I can help you:',\n    '1. Save bills, invoices, warranty cards, and demo insurance policies.',\n    '2. Show your saved warranties.',\n    '3. Start a warranty claim draft.',\n    '',\n    'Upload a clear bill/photo/PDF, or type show my warranties.'\n  ].join('\\n');\n} else if (intent === 'upload_guidance') {\n  reply_text = 'Upload a clear PDF, JPG, or PNG bill, invoice, warranty card, or insurance policy. Make sure product name, purchase date, seller, and warranty details are readable.';\n} else if (intent === 'email_capture') {\n  reply_text = user_email\n    ? 'Email saved. I will CC this email when sending approved claim emails.'\n    : 'Please send your email like this: /setemail yourname@example.com';\n} else if (intent === 'warranty_lookup') {\n  if (products.length === 0) {\n    reply_text = 'No saved warranties found yet. Upload a bill or warranty card first.';\n  } else {\n    reply_text = `Your saved warranties:\\n\\n${products\n      .slice(0, 10)\n      .map(productLabel)\n      .join('\\n\\n')}`;\n  }\n} else if (intent === 'claim_request') {\n  const matches = matchProducts(products, text);\n\n  if (products.length === 0) {\n    reply_text = 'No saved warranties found yet. Upload a bill or warranty card first.';\n  } else if (matches.length === 0) {\n    reply_text = [\n      'I could not match that claim request to a saved product.',\n      '',\n      'Your saved products:',\n      products.slice(0, 10).map(compactProduct).join('\\n'),\n      '',\n      'Please send: claim PRODUCT NAME'\n    ].join('\\n');\n  } else {\n    const bestScore = matches[0].score;\n    const bestMatches = matches.filter((entry) => entry.score === bestScore);\n\n    if (bestMatches.length > 1 && bestScore < 8) {\n      reply_text = [\n        'I found multiple matching products:',\n        '',\n        bestMatches\n          .slice(0, 10)\n          .map((entry, index) => compactProduct(entry.product, index))\n          .join('\\n'),\n        '',\n        'Please be more specific. Send: claim PRODUCT NAME'\n      ].join('\\n');\n    } else {\n      const product = matches[0].product;\n\n      related_product_id = product.Product_ID || '';\n      related_claim_id = '';\n\n      route_index = 1;\n      bot_waiting_for = 'issue_description';\n      current_step = 'waiting_for_issue_description';\n      next_action = 'Ask user for issue description';\n\n      reply_text = [\n        'I found this product:',\n        '',\n        `Product: ${product.Product_Name || 'Unnamed product'}`,\n        `Brand: ${product.Brand || 'Not found'}`,\n        `Warranty Valid Till: ${product.Warranty_Expiry_Date || 'Unknown'}`,\n        `Status: ${product.Warranty_Status || 'Unknown'}`,\n        `Support Email: ${product.Support_Email || 'Not found'}`,\n        '',\n        'Please describe the issue in one sentence.',\n        'Example: Battery is not holding charge properly.'\n      ].join('\\n');\n    }\n  }\n} else if (intent === 'invalid_issue_description') {\n  route_index = 0;\n  reply_text = 'Please describe the actual product issue in one sentence. Example: Battery is not holding charge properly.';\n} else if (intent === 'issue_description') {\n  const product = productById;\n\n  if (!product) {\n    route_index = 1;\n    reply_text = 'I lost the product context. Please send: claim PRODUCT NAME';\n    current_step = 'needs_product_selection';\n    bot_waiting_for = '';\n    related_product_id = '';\n    related_claim_id = '';\n  } else {\n    route_index = 2;\n\n    claim_id = makeClaimId();\n    related_claim_id = claim_id;\n    related_product_id = product.Product_ID || '';\n\n    issue_description = text;\n    claim_email_to = product.Support_Email || '';\n    claim_email_subject = `Warranty Claim Request for ${product.Product_Name || 'Product'} - Invoice No. ${product.Invoice_Number || 'Not Available'}`;\n    claim_email_body = buildClaimEmailBody(product, text);\n\n    claim_status = 'Draft Created';\n    user_approval_status = 'Pending';\n\n    bot_waiting_for = 'claim_approval';\n    current_step = 'waiting_for_claim_approval';\n    next_action = 'Awaiting user approval';\n    notes = 'Created from Telegram chat router';\n\n    reply_text = [\n      coverageText(product, text),\n      '',\n      `Claim draft created for ${product.Product_Name || 'this product'}.`,\n      `Support Email: ${claim_email_to || 'Not found'}`,\n      `Issue: ${text}`,\n      '',\n      'Reply SEND to send this email, or CANCEL to stop.'\n    ].join('\\n');\n  }\n} else if (intent === 'awaiting_claim_approval_response') {\n  route_index = 0;\n  reply_text = 'A claim draft is already ready. Please reply SEND to send the claim email, or CANCEL to stop.';\n} else if (intent === 'claim_approval') {\n  if (!relatedClaimId) {\n    route_index = 0;\n    reply_text = 'I do not see a claim waiting for approval. Start with: claim PRODUCT NAME';\n  } else {\n    route_index = 3;\n\n    claim_id = relatedClaimId;\n    related_claim_id = relatedClaimId;\n    related_product_id = relatedProductId;\n\n    claim_status = 'Approved for Sending';\n    user_approval_status = 'Approved';\n\n    bot_waiting_for = 'email_send_workflow';\n    current_step = 'approved_for_sending';\n    next_action = 'Email sending workflow should send claim email';\n\n    reply_text = 'Approval received. The email sending workflow will now send the claim email.';\n  }\n} else if (intent === 'claim_cancel') {\n  if (!relatedClaimId) {\n    route_index = 1;\n\n    bot_waiting_for = '';\n    current_step = 'cancelled';\n    next_action = '';\n    related_product_id = '';\n    related_claim_id = '';\n\n    reply_text = 'Claim cancelled.';\n  } else {\n    route_index = 4;\n\n    claim_id = relatedClaimId;\n    related_claim_id = relatedClaimId;\n    related_product_id = relatedProductId;\n\n    claim_status = 'Cancelled';\n    user_approval_status = 'Cancelled';\n\n    bot_waiting_for = '';\n    current_step = 'cancelled';\n    next_action = '';\n\n    reply_text = 'Claim cancelled.';\n  }\n} else if (intent === 'claim_status') {\n  if (claims.length === 0) {\n    reply_text = 'No claim requests found yet.';\n  } else {\n    reply_text = `Recent claims:\\n\\n${claims\n      .slice(-5)\n      .reverse()\n      .map((claim, index) => {\n        return [\n          `${index + 1}. Claim ${claim.Claim_ID || ''}`,\n          `Status: ${claim.Claim_Status || 'Unknown'}`,\n          `Next Action: ${claim.Next_Action || 'None'}`\n        ].join('\\n');\n      })\n      .join('\\n\\n')}`;\n  }\n} else if (intent === 'follow_up_request') {\n  reply_text = 'Follow-up support will be handled after a claim email has been sent. For now, use claim status to check the latest saved status.';\n} else {\n  reply_text = \"I can help you upload bills, check warranties, and raise claims. Send a bill/photo/PDF or type 'show my warranties'.\";\n}\n\nreturn [\n  {\n    json: {\n      ...input,\n\n      user_id: String(userId || ''),\n      telegram_user_id: String(telegramUserId || ''),\n      chat_id: String(chatId || ''),\n      user_name: String(input.user_name || ''),\n\n      intent: String(intent || ''),\n      route_index,\n      reply_text: String(reply_text || ''),\n\n      claim_id: String(claim_id || ''),\n      related_product_id: String(related_product_id || ''),\n      related_claim_id: String(related_claim_id || ''),\n\n      bot_waiting_for: String(bot_waiting_for || ''),\n      current_step: String(current_step || ''),\n      next_action: String(next_action || ''),\n\n      issue_description: String(issue_description || ''),\n      claim_email_to: String(claim_email_to || ''),\n      claim_email_subject: String(claim_email_subject || ''),\n      claim_email_body: String(claim_email_body || ''),\n\n      claim_status: String(claim_status || ''),\n      user_approval_status: String(user_approval_status || ''),\n\n      last_message: String(text || ''),\n      updated_at: String(nowIso() || ''),\n      notes: String(notes || ''),\n      user_email: String(user_email || ''),\n\n      debug_waiting_for_before: String(waitingFor || ''),\n      debug_state_product_id_before: String(relatedProductId || ''),\n      debug_state_claim_id_before: String(relatedClaimId || ''),\n      debug_state_rows_found: String(stateRows.length || 0),\n      debug_products_found: String(products.length || 0),\n      debug_claims_found: String(claims.length || 0)\n    }\n  }\n];"
+      },
+      "id": "66b261e9-1451-479d-bb29-f2c7989e497a",
+      "name": "Classify User Intent1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1648,
+        8992
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = String($json.reply_text || '').trim() || \"I can help you upload bills, check warranties, and raise claims. Send a bill/photo/PDF or type 'show my warranties'.\";\nconst routeStatuses = {\n  0: 'direct_response',\n  1: 'state_update_pending',\n  2: 'claim_draft_pending',\n  3: 'approval_pending_email_send',\n  4: 'claim_cancel_pending',\n  5: 'document_intake_requested',\n  6: 'email_capture_pending'\n};\nconst status = $json.status || routeStatuses[Number($json.route_index)] || 'routed';\n\nreturn [{\n  json: {\n    ...$json,\n    reply_text: text.length > 3900 ? `${text.slice(0, 3850)}\\n\\nMessage shortened.` : text,\n    status\n  }\n}];"
+      },
+      "id": "c8b48538-363f-47aa-bf2b-3e65b96a5d79",
+      "name": "Response Formatter1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1424,
+        8992
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 7,
+        "output": "={{ $json.route_index }}"
+      },
+      "id": "ea7d7289-8727-497b-93d8-f80c316c5699",
+      "name": "Switch / Router1",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -1200,
+        8912
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reply_text }}",
+        "additionalFields": {}
+      },
+      "id": "70e46d60-91db-41d2-8c98-32c4f1c62d75",
+      "name": "Telegram Reply - Direct Response1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -976,
+        8416
+      ],
+      "webhookId": "644a9c9a-8bc2-4cd7-bbd2-52eb382c50dd",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Conversation_State' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "User_ID": "={{ $('Classify User Intent1').item.json.user_id }}",
+            "Chat_ID": "={{ $('Classify User Intent1').item.json.chat_id }}",
+            "Current_Intent": "={{ $('Classify User Intent1').item.json.intent }}",
+            "Current_Step": "={{ $('Classify User Intent1').item.json.current_step }}",
+            "Related_Product_ID": "={{ $('Classify User Intent1').item.json.related_product_id }}",
+            "Related_Claim_ID": "={{ $('Classify User Intent1').item.json.related_claim_id }}",
+            "Last_User_Message": "={{ $('Classify User Intent1').item.json.last_message }}",
+            "Bot_Waiting_For": "={{ $('Classify User Intent1').item.json.bot_waiting_for }}",
+            "Last_Updated": "={{ $('Classify User Intent1').item.json.updated_at }}"
+          },
+          "matchingColumns": [
+            "User_ID"
+          ],
+          "schema": [
+            {
+              "id": "State_ID",
+              "displayName": "State_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Chat_ID",
+              "displayName": "Chat_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current_Intent",
+              "displayName": "Current_Intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current_Step",
+              "displayName": "Current_Step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Related_Product_ID",
+              "displayName": "Related_Product_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Related_Claim_ID",
+              "displayName": "Related_Claim_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_User_Message",
+              "displayName": "Last_User_Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Bot_Waiting_For",
+              "displayName": "Bot_Waiting_For",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created_At",
+              "displayName": "Created_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Updated",
+              "displayName": "Last_Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "31489dc1-6215-4ff6-94ed-d71eebc2796a",
+      "name": "Update Conversation_State1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -976,
+        8608
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reply_text }}",
+        "additionalFields": {}
+      },
+      "id": "2df88e44-81d2-4df5-8ff8-193296479ef0",
+      "name": "Telegram Reply - After State Update1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -528,
+        8608
+      ],
+      "webhookId": "7bb1cd62-9729-4d29-b0a9-c0c3bf391d37",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Claims' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Claim_ID": "={{ $json.claim_id }}",
+            "User_ID": "={{ $json.user_id }}",
+            "Product_ID": "={{ $json.related_product_id }}",
+            "Issue_Description": "={{ $json.issue_description }}",
+            "Claim_Email_To": "={{ $json.claim_email_to }}",
+            "Claim_Email_CC": "",
+            "Claim_Email_Subject": "={{ $json.claim_email_subject }}",
+            "Claim_Email_Body": "={{ $json.claim_email_body }}",
+            "Claim_Status": "Draft Created",
+            "User_Approval_Status": "Pending",
+            "Email_Sent_At": "",
+            "Followup_Date": "",
+            "Last_Followup_At": "",
+            "Next_Action": "Awaiting user approval",
+            "Notes": "={{ $json.notes }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Claim_ID",
+              "displayName": "Claim_ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product_ID",
+              "displayName": "Product_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Issue_Description",
+              "displayName": "Issue_Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_To",
+              "displayName": "Claim_Email_To",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_CC",
+              "displayName": "Claim_Email_CC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_Subject",
+              "displayName": "Claim_Email_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_Body",
+              "displayName": "Claim_Email_Body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Status",
+              "displayName": "Claim_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_Approval_Status",
+              "displayName": "User_Approval_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email_Sent_At",
+              "displayName": "Email_Sent_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Followup_Date",
+              "displayName": "Followup_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Followup_At",
+              "displayName": "Last_Followup_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Next_Action",
+              "displayName": "Next_Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b0fdb778-0072-436c-8361-00c9e48af2dc",
+      "name": "Append Pending Claim1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -976,
+        8800
+      ],
+      "notesInFlow": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      },
+      "notes": "TODO: Claim_Email_CC should be populated from Users.Email in Workflow 04 before sending."
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Conversation_State' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "User_ID": "={{ $('Classify User Intent1').item.json.user_id }}",
+            "Chat_ID": "={{ $('Classify User Intent1').item.json.chat_id }}",
+            "Current_Intent": "={{ $('Classify User Intent1').item.json.intent }}",
+            "Current_Step": "={{ $('Classify User Intent1').item.json.current_step }}",
+            "Related_Product_ID": "={{ $('Classify User Intent1').item.json.related_product_id }}",
+            "Related_Claim_ID": "={{ $('Classify User Intent1').item.json.related_claim_id }}",
+            "Last_User_Message": "={{ $('Classify User Intent1').item.json.last_message }}",
+            "Bot_Waiting_For": "={{ $('Classify User Intent1').item.json.bot_waiting_for }}",
+            "Last_Updated": "={{ $('Classify User Intent1').item.json.updated_at }}"
+          },
+          "matchingColumns": [
+            "User_ID"
+          ],
+          "schema": [
+            {
+              "id": "State_ID",
+              "displayName": "State_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Chat_ID",
+              "displayName": "Chat_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current_Intent",
+              "displayName": "Current_Intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current_Step",
+              "displayName": "Current_Step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Related_Product_ID",
+              "displayName": "Related_Product_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Related_Claim_ID",
+              "displayName": "Related_Claim_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_User_Message",
+              "displayName": "Last_User_Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Bot_Waiting_For",
+              "displayName": "Bot_Waiting_For",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created_At",
+              "displayName": "Created_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Updated",
+              "displayName": "Last_Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "3243b444-5cbd-45e6-8f80-b3ac6578fd14",
+      "name": "Update Conversation_State - Claim Draft1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -752,
+        8800
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reply_text }}",
+        "additionalFields": {}
+      },
+      "id": "ad73639a-b36b-4d41-8a80-0820d012756c",
+      "name": "Telegram Reply - Claim Draft Approval1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        8800
+      ],
+      "webhookId": "43d10eb3-e8cf-41f3-ba4a-e7942316d39e",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Claims' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Claim_ID": "={{ $('Classify User Intent1').item.json.claim_id }}",
+            "Claim_Status": "={{ $('Classify User Intent1').item.json.claim_status }}",
+            "User_Approval_Status": "={{ $('Classify User Intent1').item.json.user_approval_status }}",
+            "Next_Action": "={{ $('Classify User Intent1').item.json.next_action }}",
+            "Notes": "={{ $('Classify User Intent1').item.json.notes || $('Classify User Intent1').item.json.intent }}"
+          },
+          "matchingColumns": [
+            "Claim_ID"
+          ],
+          "schema": [
+            {
+              "id": "Claim_ID",
+              "displayName": "Claim_ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product_ID",
+              "displayName": "Product_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Issue_Description",
+              "displayName": "Issue_Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_To",
+              "displayName": "Claim_Email_To",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_CC",
+              "displayName": "Claim_Email_CC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_Subject",
+              "displayName": "Claim_Email_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_Body",
+              "displayName": "Claim_Email_Body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Status",
+              "displayName": "Claim_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_Approval_Status",
+              "displayName": "User_Approval_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email_Sent_At",
+              "displayName": "Email_Sent_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Followup_Date",
+              "displayName": "Followup_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Followup_At",
+              "displayName": "Last_Followup_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Next_Action",
+              "displayName": "Next_Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "9b7481c1-882e-4bb1-b9a3-a20f0aab9780",
+      "name": "Update Claim Approval Status1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -976,
+        8992
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Conversation_State' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "User_ID": "={{ $('Classify User Intent1').item.json.user_id }}",
+            "Chat_ID": "={{ $('Classify User Intent1').item.json.chat_id }}",
+            "Current_Intent": "={{ $('Classify User Intent1').item.json.intent }}",
+            "Current_Step": "={{ $('Classify User Intent1').item.json.current_step }}",
+            "Related_Product_ID": "={{ $('Classify User Intent1').item.json.related_product_id }}",
+            "Related_Claim_ID": "={{ $('Classify User Intent1').item.json.related_claim_id }}",
+            "Last_User_Message": "={{ $('Classify User Intent1').item.json.last_message }}",
+            "Bot_Waiting_For": "={{ $('Classify User Intent1').item.json.bot_waiting_for }}",
+            "Last_Updated": "={{ $('Classify User Intent1').item.json.updated_at }}"
+          },
+          "matchingColumns": [
+            "User_ID"
+          ],
+          "schema": [
+            {
+              "id": "State_ID",
+              "displayName": "State_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Chat_ID",
+              "displayName": "Chat_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current_Intent",
+              "displayName": "Current_Intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current_Step",
+              "displayName": "Current_Step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Related_Product_ID",
+              "displayName": "Related_Product_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Related_Claim_ID",
+              "displayName": "Related_Claim_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_User_Message",
+              "displayName": "Last_User_Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Bot_Waiting_For",
+              "displayName": "Bot_Waiting_For",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created_At",
+              "displayName": "Created_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Updated",
+              "displayName": "Last_Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "601b3bee-f0b6-4e64-a026-7f43801b02d5",
+      "name": "Update Conversation_State - Approval1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -752,
+        8992
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "RUfUy50zCy6xvq6S",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/RUfUy50zCy6xvq6S",
+          "cachedResultName": "ClaimMate - 04 Send Approved Claim Email"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $json.user_id }}",
+            "telegram_user_id": "={{ $json.telegram_user_id }}",
+            "chat_id": "={{ $json.chat_id }}",
+            "user_name": "={{ $json.user_name }}",
+            "intent": "={{ $json.intent }}",
+            "claim_id": "={{ $json.claim_id }}",
+            "related_claim_id": "={{ $json.related_claim_id }}",
+            "related_product_id": "={{ $json.related_product_id }}",
+            "claim_status": "={{ $json.claim_status }}",
+            "user_approval_status": "={{ $json.user_approval_status }}",
+            "reply_text": "={{ $json.reply_text }}",
+            "updated_at": "={{ $json.updated_at }}",
+            "status": "={{ $json.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "user_name",
+              "displayName": "user_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intent",
+              "displayName": "intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "claim_id",
+              "displayName": "claim_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "related_claim_id",
+              "displayName": "related_claim_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "related_product_id",
+              "displayName": "related_product_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "claim_status",
+              "displayName": "claim_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "user_approval_status",
+              "displayName": "user_approval_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reply_text",
+              "displayName": "reply_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "b91e08cd-1479-4b11-83c8-90b1cc63506d",
+      "name": "Execute Workflow - Send Approved Claim Email1",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -304,
+        8992
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Claims' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Claim_ID": "={{ $('Classify User Intent1').item.json.claim_id }}",
+            "Claim_Status": "={{ $('Classify User Intent1').item.json.claim_status }}",
+            "User_Approval_Status": "={{ $('Classify User Intent1').item.json.user_approval_status }}",
+            "Next_Action": "={{ $('Classify User Intent1').item.json.next_action }}",
+            "Notes": "={{ $('Classify User Intent1').item.json.notes || $('Classify User Intent1').item.json.intent }}"
+          },
+          "matchingColumns": [
+            "Claim_ID"
+          ],
+          "schema": [
+            {
+              "id": "Claim_ID",
+              "displayName": "Claim_ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product_ID",
+              "displayName": "Product_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Issue_Description",
+              "displayName": "Issue_Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_To",
+              "displayName": "Claim_Email_To",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_CC",
+              "displayName": "Claim_Email_CC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_Subject",
+              "displayName": "Claim_Email_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_Body",
+              "displayName": "Claim_Email_Body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Status",
+              "displayName": "Claim_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_Approval_Status",
+              "displayName": "User_Approval_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email_Sent_At",
+              "displayName": "Email_Sent_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Followup_Date",
+              "displayName": "Followup_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Followup_At",
+              "displayName": "Last_Followup_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Next_Action",
+              "displayName": "Next_Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "47707557-62b2-4a67-bf08-d3f6ad2423c4",
+      "name": "Update Claim Cancel Status1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -976,
+        9184
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Conversation_State' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "User_ID": "={{ $('Classify User Intent1').item.json.user_id }}",
+            "Chat_ID": "={{ $('Classify User Intent1').item.json.chat_id }}",
+            "Current_Intent": "={{ $('Classify User Intent1').item.json.intent }}",
+            "Current_Step": "={{ $('Classify User Intent1').item.json.current_step }}",
+            "Related_Product_ID": "={{ $('Classify User Intent1').item.json.related_product_id }}",
+            "Related_Claim_ID": "={{ $('Classify User Intent1').item.json.related_claim_id }}",
+            "Last_User_Message": "={{ $('Classify User Intent1').item.json.last_message }}",
+            "Bot_Waiting_For": "={{ $('Classify User Intent1').item.json.bot_waiting_for }}",
+            "Last_Updated": "={{ $('Classify User Intent1').item.json.updated_at }}"
+          },
+          "matchingColumns": [
+            "User_ID"
+          ],
+          "schema": [
+            {
+              "id": "State_ID",
+              "displayName": "State_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Chat_ID",
+              "displayName": "Chat_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current_Intent",
+              "displayName": "Current_Intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Current_Step",
+              "displayName": "Current_Step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Related_Product_ID",
+              "displayName": "Related_Product_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Related_Claim_ID",
+              "displayName": "Related_Claim_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_User_Message",
+              "displayName": "Last_User_Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Bot_Waiting_For",
+              "displayName": "Bot_Waiting_For",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created_At",
+              "displayName": "Created_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Updated",
+              "displayName": "Last_Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "636d1ba2-aee9-47f6-aff4-4984bed441b4",
+      "name": "Update Conversation_State - Cancel1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -752,
+        9184
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reply_text }}",
+        "additionalFields": {}
+      },
+      "id": "c6fc8f91-2cff-444d-ba30-8b506c56c95b",
+      "name": "Telegram Reply - Claim Cancelled1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        9184
+      ],
+      "webhookId": "f60d2094-e999-49d0-96a4-a8245aef578c",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Users' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "User_ID": "={{ $('Classify User Intent1').item.json.user_id }}",
+            "Telegram_ID": "={{ $('Classify User Intent1').item.json.telegram_user_id || $('Classify User Intent1').item.json.user_id }}",
+            "Name": "={{ $('Classify User Intent1').item.json.user_name }}",
+            "Email": "={{ $('Classify User Intent1').item.json.user_email }}",
+            "Phone": "",
+            "Consent_Status": "Active",
+            "Created_At": "={{ $('Classify User Intent1').item.json.updated_at }}",
+            "Last_Updated": "={{ $('Classify User Intent1').item.json.updated_at }}"
+          },
+          "matchingColumns": [
+            "User_ID"
+          ],
+          "schema": [
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Telegram_ID",
+              "displayName": "Telegram_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Consent_Status",
+              "displayName": "Consent_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created_At",
+              "displayName": "Created_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Updated",
+              "displayName": "Last_Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "3719feee-e725-4fb6-b40f-c8d50fdc394f",
+      "name": "Update User Profile1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -976,
+        9568
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reply_text }}",
+        "additionalFields": {}
+      },
+      "id": "740eff5f-ccee-4523-a4cc-ceaadfa63cfd",
+      "name": "Telegram Reply - Email Saved1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -528,
+        9568
+      ],
+      "webhookId": "760ffa65-82ff-4e0a-9aee-a5401ec002d2",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE",
+          "mode": "list",
+          "cachedResultName": "ClaimMate_MVP_Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2043190701,
+          "mode": "list",
+          "cachedResultName": "Products",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit#gid=2043190701"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2080,
+        8992
+      ],
+      "id": "2eab209f-b972-4510-a34f-d7c8c80b7448",
+      "name": "Read Products tab1",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE",
+          "mode": "list",
+          "cachedResultName": "ClaimMate_MVP_Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 228994137,
+          "mode": "list",
+          "cachedResultName": "Claims",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit#gid=228994137"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1840,
+        8992
+      ],
+      "id": "9f232edc-5399-4598-a97e-058db6991d9e",
+      "name": "Read Claims tab1",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "x4DZiX92wUbObJPv",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/x4DZiX92wUbObJPv",
+          "cachedResultName": "ClaimMate - 01 Telegram Intake"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $json.user_id }}",
+            "telegram_user_id": "={{ $json.telegram_user_id }}",
+            "chat_id": "={{ $json.chat_id }}",
+            "user_name": "={{ $json.user_name }}",
+            "message_text": "={{ $json.message_text }}",
+            "normalized_text": "={{ $json.normalized_text }}",
+            "incoming_type": "={{ $json.incoming_type }}",
+            "has_file": "={{ $json.has_file }}",
+            "file_id": "={{ $json.file_id }}",
+            "file_name": "={{ $json.file_name }}",
+            "file_type": "={{ $json.file_type }}",
+            "mime_type": "={{ $json.mime_type }}",
+            "received_at": "={{ $json.received_at }}",
+            "reply_text": "={{ $json.reply_text }}",
+            "intent": "={{ $json.intent }}",
+            "status": "={{ $json.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_user_id",
+              "displayName": "telegram_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "user_name",
+              "displayName": "user_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_text",
+              "displayName": "message_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "normalized_text",
+              "displayName": "normalized_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "incoming_type",
+              "displayName": "incoming_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "has_file",
+              "displayName": "has_file",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_id",
+              "displayName": "file_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_name",
+              "displayName": "file_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "file_type",
+              "displayName": "file_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mime_type",
+              "displayName": "mime_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "received_at",
+              "displayName": "received_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reply_text",
+              "displayName": "reply_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "intent",
+              "displayName": "intent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "0e7dd602-1020-4665-a63c-a12a7cae6a64",
+      "name": "Execute Workflow - Document Intake2",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -960,
+        9408
+      ]
+    }
+  ],
+  "connections": {
+    "Prepare Telegram Reply - State Update": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply - After State Update1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Telegram Reply - Claim Draft": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply - Claim Draft Approval1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Send Email Payload": {
+      "main": [
+        [
+          {
+            "node": "Execute Workflow - Send Approved Claim Email1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Telegram Reply - Cancel": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply - Claim Cancelled1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Telegram Reply - Email Saved": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply - Email Saved1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Normalize Telegram Message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Telegram Message1": {
+      "main": [
+        [
+          {
+            "node": "Read Conversation_State tab1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Conversation_State tab1": {
+      "main": [
+        [
+          {
+            "node": "Read Products tab1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify User Intent1": {
+      "main": [
+        [
+          {
+            "node": "Response Formatter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Formatter1": {
+      "main": [
+        [
+          {
+            "node": "Switch / Router1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch / Router1": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply - Direct Response1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Conversation_State1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append Pending Claim1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Claim Approval Status1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Claim Cancel Status1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Execute Workflow - Document Intake2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update User Profile1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation_State1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Reply - State Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Pending Claim1": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation_State - Claim Draft1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation_State - Claim Draft1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Reply - Claim Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Claim Approval Status1": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation_State - Approval1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation_State - Approval1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Send Email Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Claim Cancel Status1": {
+      "main": [
+        [
+          {
+            "node": "Update Conversation_State - Cancel1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Conversation_State - Cancel1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Reply - Cancel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update User Profile1": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Reply - Email Saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Products tab1": {
+      "main": [
+        [
+          {
+            "node": "Read Claims tab1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Claims tab1": {
+      "main": [
+        [
+          {
+            "node": "Classify User Intent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6950ecbbbeb052ad10e35a4abe396daa22577c41ec2d8a9cd9613785fd1cfbb4"
+  }
+}
