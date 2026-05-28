@@ -1,0 +1,464 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "82b1062e-835c-4824-b336-23a86ee5f2b2",
+      "name": "When Executed by Router",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1520,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $json;\nconst message = update.message || update.edited_message || {};\nconst from = message.from || {};\nconst chat = message.chat || {};\nconst messageText = String(update.message_text || message.text || message.caption || '').trim();\nconst normalizedText = String(update.normalized_text || messageText.toLowerCase().replace(/\\s+/g, ' ')).trim();\n\nconst claimPhrases = [\n  'warranty claim',\n  'raise claim',\n  'replacement',\n  'repair',\n  'not working',\n  'issue with',\n  'problem with',\n  'claim'\n];\n\nconst isClaimIntent = claimPhrases.some((phrase) => normalizedText.includes(phrase));\nconst telegramUserId = update.telegram_user_id || update.user_id || from.id || '';\n\nreturn [\n  {\n    json: {\n      chat_id: update.chat_id || chat.id,\n      telegram_user_id: telegramUserId,\n      user_name: update.user_name || [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || 'Telegram User',\n      message_text: messageText,\n      normalized_text: normalizedText,\n      is_claim_intent: isClaimIntent\n    }\n  }\n];"
+      },
+      "id": "d3a6fdc7-8465-423e-b675-02b339a22906",
+      "name": "Detect Claim Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1280,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b8229a5f-e716-4d92-a88e-b2f8a0270a59",
+              "leftValue": "={{ $json.is_claim_intent }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b57023d6-3426-4a70-ac94-20cfd1433005",
+      "name": "Is Claim Request?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1040,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Products' }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "a9f08513-3501-4413-8687-4e87d43c2d87",
+      "name": "Read Products Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -784,
+        128
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "function normalize(value) {\n  return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\\s+/g, ' ').trim();\n}\n\nfunction productLabel(product) {\n  const name = product.Product_Name || 'Unnamed product';\n  const brand = product.Brand || 'Unknown brand';\n  const status = product.Warranty_Status || 'Unknown';\n  return `${name} - ${brand} - ${status}`;\n}\n\nfunction claimId() {\n  return `claim_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;\n}\n\nconst intent = $node['Detect Claim Intent'].json;\nconst userId = String(intent.telegram_user_id || '').trim();\nconst messageText = intent.message_text || '';\nconst normalizedMessage = normalize(messageText);\n\nconst rows = $input.all().map((item) => item.json || {});\nconst userProducts = rows.filter((row) => String(row.User_ID || '').trim() === userId);\n\nconst triggerWords = [\n  'warranty claim',\n  'raise claim',\n  'replacement',\n  'repair',\n  'not working',\n  'issue with',\n  'problem with',\n  'claim',\n  'warranty',\n  'product',\n  'please',\n  'for',\n  'my',\n  'the',\n  'a',\n  'an'\n];\n\nlet query = ` ${normalizedMessage} `;\nfor (const phrase of triggerWords) {\n  query = query.replace(new RegExp(` ${normalize(phrase)} `, 'g'), ' ');\n}\nquery = query.replace(/\\s+/g, ' ').trim();\n\nconst queryTerms = query.split(' ').filter((term) => term.length >= 2);\n\nfunction scoreProduct(product) {\n  const name = normalize(product.Product_Name);\n  const brand = normalize(product.Brand);\n  const seller = normalize(product.Seller);\n  const invoice = normalize(product.Invoice_Number);\n  const haystack = [name, brand, seller, invoice].filter(Boolean).join(' ');\n  let score = 0;\n\n  if (name && normalizedMessage.includes(name)) score += 8;\n  if (invoice && normalizedMessage.includes(invoice)) score += 8;\n  if (brand && normalizedMessage.includes(brand)) score += 2;\n\n  for (const term of queryTerms) {\n    if (name.split(' ').includes(term)) score += 3;\n    else if (haystack.includes(term)) score += 1;\n  }\n\n  return score;\n}\n\nconst scored = userProducts\n  .map((product) => ({ product, score: scoreProduct(product) }))\n  .filter((entry) => entry.score > 0)\n  .sort((a, b) => b.score - a.score);\n\nlet match_status = 'none';\nlet matchedProduct = null;\nlet replyText = '';\nlet shouldAppendClaim = false;\n\nif (userProducts.length === 0) {\n  replyText = 'No saved warranties found yet. Upload a bill or warranty card first.';\n} else if (scored.length === 1) {\n  match_status = 'single';\n  matchedProduct = scored[0].product;\n  shouldAppendClaim = true;\n  replyText = [\n    'I found this product:',\n    '',\n    `Product: ${matchedProduct.Product_Name || 'Unnamed product'}`,\n    `Brand: ${matchedProduct.Brand || 'Not found'}`,\n    `Warranty Valid Till: ${matchedProduct.Warranty_Expiry_Date || 'Unknown'}`,\n    `Status: ${matchedProduct.Warranty_Status || 'Unknown'}`,\n    `Support Email: ${matchedProduct.Support_Email || 'Not found'}`,\n    '',\n    'Please describe the issue in one sentence.',\n    'Example: The product is not working properly.'\n  ].join('\\n');\n} else if (scored.length > 1) {\n  match_status = 'multiple';\n  const options = scored.slice(0, 10).map((entry, index) => `${index + 1}. ${productLabel(entry.product)}`).join('\\n');\n  replyText = `I found multiple matching products:\\n\\n${options}\\n\\nPlease be more specific. Send: claim PRODUCT_NAME`;\n} else {\n  const products = userProducts.slice(0, 10).map((product, index) => `${index + 1}. ${productLabel(product)}`).join('\\n');\n  replyText = `I could not match that claim request to a saved product.\\n\\nYour saved products:\\n${products}\\n\\nPlease send: claim PRODUCT_NAME`;\n}\n\nconst generatedClaimId = shouldAppendClaim ? claimId() : '';\n\nreturn [\n  {\n    json: {\n      chat_id: intent.chat_id,\n      user_id: userId,\n      message_text: messageText,\n      match_status,\n      should_append_claim: shouldAppendClaim,\n      reply_text: replyText,\n      claim_id: generatedClaimId,\n      product_id: matchedProduct?.Product_ID || '',\n      product_name: matchedProduct?.Product_Name || '',\n      brand: matchedProduct?.Brand || '',\n      warranty_expiry_date: matchedProduct?.Warranty_Expiry_Date || '',\n      warranty_status: matchedProduct?.Warranty_Status || '',\n      support_email: matchedProduct?.Support_Email || ''\n    }\n  }\n];"
+      },
+      "id": "40e483da-9698-4359-a839-438485afe7ac",
+      "name": "Match Product From Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -528,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d408d171-1175-4978-94ef-e1dc6e82f30f",
+              "leftValue": "={{ $json.should_append_claim }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6885060c-4c93-4790-bd28-6fda904c3b64",
+      "name": "Should Append Claim?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -256,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Claims' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Claim_ID": "={{ $json.claim_id }}",
+            "User_ID": "={{ $json.user_id }}",
+            "Product_ID": "={{ $json.product_id }}",
+            "Issue_Description": "",
+            "Claim_Email_To": "={{ $json.support_email }}",
+            "Claim_Email_CC": "",
+            "Claim_Email_Subject": "",
+            "Claim_Email_Body": "",
+            "Claim_Status": "Awaiting Issue Description",
+            "User_Approval_Status": "Not Requested",
+            "Email_Sent_At": "",
+            "Followup_Date": "",
+            "Last_Followup_At": "",
+            "Next_Action": "Ask user for issue description",
+            "Notes": "Created from Telegram claim request"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Claim_ID",
+              "displayName": "Claim_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product_ID",
+              "displayName": "Product_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Issue_Description",
+              "displayName": "Issue_Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_To",
+              "displayName": "Claim_Email_To",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_CC",
+              "displayName": "Claim_Email_CC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_Subject",
+              "displayName": "Claim_Email_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_Body",
+              "displayName": "Claim_Email_Body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Status",
+              "displayName": "Claim_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_Approval_Status",
+              "displayName": "User_Approval_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email_Sent_At",
+              "displayName": "Email_Sent_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Followup_Date",
+              "displayName": "Followup_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Followup_At",
+              "displayName": "Last_Followup_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Next_Action",
+              "displayName": "Next_Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "f12fa626-1ba8-4486-a61c-634ee7ec9143",
+      "name": "Append Pending Claim",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Match Product From Message\"].json.chat_id }}",
+        "text": "={{ $node[\"Match Product From Message\"].json.reply_text }}",
+        "additionalFields": {}
+      },
+      "id": "50ef09b3-f852-49e8-ac6e-42b3c635ad57",
+      "name": "Telegram Reply - Ask Issue Description",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        272,
+        0
+      ],
+      "webhookId": "f89897c4-c7cd-41e2-9927-552edfe26afb"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reply_text }}",
+        "additionalFields": {}
+      },
+      "id": "d8d4dafa-7a8b-44e6-bbcc-24816b05c5ba",
+      "name": "Telegram Reply - Match Help",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        272
+      ],
+      "webhookId": "c98129f2-57a6-4ad9-9663-1ea1e1fe8043"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "Send: claim PRODUCT_NAME. Example: claim iPhone charger. I will find the saved product and ask for the issue details.",
+        "additionalFields": {}
+      },
+      "id": "fb64d3e2-cde7-4c29-bb59-b61f14d81059",
+      "name": "Telegram Reply - Claim Help",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -784,
+        384
+      ],
+      "webhookId": "4156a3ab-ad60-48f9-b6b0-8d3c7b44b49c"
+    }
+  ],
+  "connections": {
+    "When Executed by Router": {
+      "main": [
+        [
+          {
+            "node": "Detect Claim Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Claim Intent": {
+      "main": [
+        [
+          {
+            "node": "Is Claim Request?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Claim Request?": {
+      "main": [
+        [
+          {
+            "node": "Read Products Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Reply - Claim Help",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Products Sheet": {
+      "main": [
+        [
+          {
+            "node": "Match Product From Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match Product From Message": {
+      "main": [
+        [
+          {
+            "node": "Should Append Claim?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Append Claim?": {
+      "main": [
+        [
+          {
+            "node": "Append Pending Claim",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Reply - Match Help",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Pending Claim": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply - Ask Issue Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "6950ecbbbeb052ad10e35a4abe396daa22577c41ec2d8a9cd9613785fd1cfbb4"
+  }
+}
