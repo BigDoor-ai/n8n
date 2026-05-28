@@ -1,0 +1,536 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "3899af16-0ca4-441c-85b7-fb69dc12eede",
+      "name": "When Executed by Router",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1696,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE",
+          "mode": "list",
+          "cachedResultName": "ClaimMate_MVP_Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 228994137,
+          "mode": "list",
+          "cachedResultName": "Claims",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit#gid=228994137"
+        },
+        "options": {}
+      },
+      "id": "55a3f0ca-3b89-4c90-8827-115c6e3464c3",
+      "name": "Read Claims tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1456,
+        128
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Users' }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "cf6c6e78-5dd4-4d17-bf15-128f7e7a360c",
+      "name": "Read Users tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1216,
+        128
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Products' }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "19cb8638-9f03-4ac0-9b93-ba35b86505dc",
+      "name": "Read Products tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -976,
+        128
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function value(row, ...keys) {\n  for (const key of keys) {\n    if (row && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {\n      return String(row[key]).trim();\n    }\n  }\n  return '';\n}\n\nconst input = $node['When Executed by Router'].json || {};\nconst userId = String(input.user_id || input.User_ID || '').trim();\nconst chatId = input.chat_id || input.Chat_ID || '';\nconst claimId = String(input.claim_id || input.related_claim_id || input.Claim_ID || '').trim();\nconst claims = $items('Read Claims tab').map((item) => item.json || {});\n\nconst claim = claims.find((row) => {\n  return value(row, 'Claim_ID') === claimId &&\n    value(row, 'User_ID') === userId &&\n    value(row, 'Claim_Status') === 'Approved for Sending' &&\n    value(row, 'User_Approval_Status') === 'Approved';\n});\n\nif (!claim) {\n  return [{ json: { ...input, can_send: false, approved_claim_found: false, error_code: 'approved_claim_not_found', error_reply: 'I could not find an approved claim ready to send. Please start the claim again.', claim_id: claimId, user_id: userId, chat_id: chatId } }];\n}\n\nreturn [{\n  json: {\n    ...input,\n    approved_claim_found: true,\n    claim_id: claimId,\n    user_id: userId,\n    chat_id: chatId,\n    claim_product_id: value(claim, 'Product_ID'),\n    issue_description: value(claim, 'Issue_Description'),\n    claim_email_to: value(claim, 'Claim_Email_To'),\n    claim_email_subject: value(claim, 'Claim_Email_Subject'),\n    claim_email_body: value(claim, 'Claim_Email_Body'),\n  }\n}];"
+      },
+      "id": "3ff6b083-bb61-430c-94d3-6cda89650872",
+      "name": "Find Approved Claim",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function value(row, ...keys) {\n  for (const key of keys) {\n    if (row && row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {\n      return String(row[key]).trim();\n    }\n  }\n  return '';\n}\n\nfunction addDays(date, days) {\n  const copy = new Date(date);\n  copy.setUTCDate(copy.getUTCDate() + days);\n  return copy;\n}\n\nfunction yyyyMmDd(date) {\n  return date.toISOString().slice(0, 10);\n}\n\nconst found = $json || {};\nif (found.can_send === false && found.error_reply) {\n  return [{ json: found }];\n}\n\nconst userId = String(found.user_id || '').trim();\nconst chatId = found.chat_id || '';\nconst claimId = String(found.claim_id || '').trim();\nconst users = $items('Read Users tab').map((item) => item.json || {});\nconst products = $items('Read Products tab').map((item) => item.json || {});\n\nconst user = users.find((row) => value(row, 'User_ID', 'user_id') === userId);\nconst userEmail = value(user, 'Email', 'user_email');\n\nif (!userEmail) {\n  return [{ json: { ...found, can_send: false, error_code: 'missing_user_email', error_reply: 'Please save your email first using /setemail yourname@example.com. I need this to CC you on the claim email.', claim_id: claimId, user_id: userId, chat_id: chatId } }];\n}\n\nconst productId = value(found, 'claim_product_id', 'related_product_id');\nconst product = products.find((row) => value(row, 'Product_ID') === productId) || {};\nconst toEmail = value(found, 'claim_email_to') || value(product, 'Support_Email');\n\nif (!toEmail) {\n  return [{ json: { ...found, can_send: false, error_code: 'missing_support_email', error_reply: 'I could not find a support email for this product. Please share the support email or update the product record.', claim_id: claimId, user_id: userId, chat_id: chatId } }];\n}\n\nconst productName = value(product, 'Product_Name') || 'Product';\nconst invoiceNumber = value(product, 'Invoice_Number') || 'Not available';\nconst userName = value(user, 'Name') || value(found, 'user_name') || 'ClaimMate User';\nconst userPhone = value(user, 'Phone');\nconst issueDescription = value(found, 'issue_description') || 'Issue details were not provided.';\nconst subject = value(found, 'claim_email_subject') || 'Warranty Claim Request for ' + productName + ' - Invoice No. ' + invoiceNumber;\nconst fallbackBody = [\n  'Dear Support Team,',\n  '',\n  'I am writing to raise a warranty claim for the following product:',\n  '',\n  'Product Name: ' + productName,\n  'Brand: ' + value(product, 'Brand'),\n  'Category: ' + value(product, 'Category'),\n  'Invoice Number: ' + invoiceNumber,\n  'Purchase Date: ' + value(product, 'Purchase_Date'),\n  'Seller: ' + value(product, 'Seller'),\n  'Warranty Valid Till: ' + value(product, 'Warranty_Expiry_Date'),\n  '',\n  'Issue:',\n  issueDescription,\n  '',\n  'The product appears to be within the warranty period. Please guide me on the next steps for repair, replacement, or service under warranty.',\n  '',\n  'Regards,',\n  userName,\n  userEmail,\n  userPhone,\n].filter((line) => line !== undefined && line !== null).join('\\n');\nconst body = value(found, 'claim_email_body') || fallbackBody;\nconst now = new Date();\nconst emailSentAt = now.toISOString();\nconst followupDate = yyyyMmDd(addDays(now, 3));\nreturn [{ json: { ...found, can_send: true, claim_id: claimId, user_id: userId, chat_id: chatId, product_id: productId, to_email: toEmail, user_email: userEmail, user_name: userName, subject, body, email_sent_at: emailSentAt, followup_date: followupDate, reply_text: 'Claim email sent.\\n\\nTo: ' + toEmail + '\\nCC: ' + userEmail + '\\n\\nClaim Status: Email Sent\\nFollow-up Date: ' + followupDate } }];"
+      },
+      "id": "f7d19a42-ecb4-497a-8783-54839aec4c60",
+      "name": "Build Email Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "04-can-send-condition",
+              "leftValue": "={{ $json.can_send }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6f51f2cc-16d5-4641-8404-612009684c86",
+      "name": "Can Send Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -256,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to_email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {
+          "appendAttribution": false,
+          "ccList": "={{ $json.user_email }}"
+        }
+      },
+      "id": "eeae6f9c-a916-4983-94ab-75367030453c",
+      "name": "Gmail Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "2e0b036b-1044-40a1-a0a0-f61ef67ea5b4",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "5ALSd3aSSWxuoBOl",
+          "name": "Gmail Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Claims' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Claim_ID": "={{ $node[\"Build Email Payload\"].json.claim_id }}",
+            "Claim_Status": "Email Sent",
+            "User_Approval_Status": "Approved",
+            "Email_Sent_At": "={{ $node[\"Build Email Payload\"].json.email_sent_at }}",
+            "Followup_Date": "={{ $node[\"Build Email Payload\"].json.followup_date }}",
+            "Next_Action": "Follow up after 3 days if no response",
+            "Notes": "Claim email sent by ClaimMate"
+          },
+          "matchingColumns": [
+            "Claim_ID"
+          ],
+          "schema": [
+            {
+              "id": "Claim_ID",
+              "displayName": "Claim_ID",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product_ID",
+              "displayName": "Product_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Issue_Description",
+              "displayName": "Issue_Description",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_To",
+              "displayName": "Claim_Email_To",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_CC",
+              "displayName": "Claim_Email_CC",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_Subject",
+              "displayName": "Claim_Email_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Email_Body",
+              "displayName": "Claim_Email_Body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Claim_Status",
+              "displayName": "Claim_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_Approval_Status",
+              "displayName": "User_Approval_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email_Sent_At",
+              "displayName": "Email_Sent_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Followup_Date",
+              "displayName": "Followup_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Followup_At",
+              "displayName": "Last_Followup_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Next_Action",
+              "displayName": "Next_Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "e43ba2ce-a163-4d3d-a810-5e05580d8cbd",
+      "name": "Update Claim Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Build Email Payload\"].json.chat_id }}",
+        "text": "={{ $node[\"Build Email Payload\"].json.reply_text }}",
+        "additionalFields": {}
+      },
+      "id": "07103150-b5d7-4d91-86bd-c84e6430948b",
+      "name": "Telegram Reply - Email Sent",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        0
+      ],
+      "webhookId": "273c8bf3-05c4-4585-a2d9-0a32b6a193c5",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.error_reply }}",
+        "additionalFields": {}
+      },
+      "id": "03d7fb00-35bc-4a07-8daa-393dec0d3fa6",
+      "name": "Telegram Reply - Cannot Send Claim Email",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        272
+      ],
+      "webhookId": "402887a1-a772-4674-999f-9deaa7dc1c60",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Router": {
+      "main": [
+        [
+          {
+            "node": "Read Claims tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Claims tab": {
+      "main": [
+        [
+          {
+            "node": "Read Users tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Users tab": {
+      "main": [
+        [
+          {
+            "node": "Read Products tab",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Products tab": {
+      "main": [
+        [
+          {
+            "node": "Find Approved Claim",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Approved Claim": {
+      "main": [
+        [
+          {
+            "node": "Build Email Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email Payload": {
+      "main": [
+        [
+          {
+            "node": "Can Send Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Can Send Email?": {
+      "main": [
+        [
+          {
+            "node": "Gmail Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Reply - Cannot Send Claim Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Send Email": {
+      "main": [
+        [
+          {
+            "node": "Update Claim Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Claim Status": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply - Email Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6950ecbbbeb052ad10e35a4abe396daa22577c41ec2d8a9cd9613785fd1cfbb4"
+  }
+}
