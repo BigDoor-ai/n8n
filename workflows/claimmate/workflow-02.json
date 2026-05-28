@@ -1,0 +1,225 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "06f38f5f-6141-4276-b62b-37446c3827c9",
+      "name": "When Executed by Router",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -736,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const update = $json;\nconst message = update.message || update.edited_message || {};\nconst from = message.from || {};\nconst chat = message.chat || {};\nconst messageText = String(update.message_text || message.text || message.caption || '').trim();\nconst normalizedText = String(update.normalized_text || messageText.toLowerCase().replace(/\\s+/g, ' ')).trim();\n\nconst lookupPhrases = [\n  '/mywarranties',\n  'show my warranties',\n  'my warranties',\n  'my products',\n  'show my products'\n];\n\nconst isLookupIntent = lookupPhrases.some((phrase) => normalizedText === phrase || normalizedText.includes(phrase));\nconst telegramUserId = update.telegram_user_id || update.user_id || from.id || '';\n\nreturn [\n  {\n    json: {\n      chat_id: update.chat_id || chat.id,\n      telegram_user_id: telegramUserId,\n      user_name: update.user_name || [from.first_name, from.last_name].filter(Boolean).join(' ') || from.username || 'Telegram User',\n      message_text: messageText,\n      normalized_text: normalizedText,\n      is_lookup_intent: isLookupIntent\n    }\n  }\n];"
+      },
+      "id": "2f381871-1613-43a9-a7c3-b5a9017fdc68",
+      "name": "Detect Lookup Intent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -496,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "e0293c31-d9d6-4f01-a859-d4be234fcf40",
+              "leftValue": "={{ $json.is_lookup_intent }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "51f365e4-46ed-46e1-b2f6-cb3865743170",
+      "name": "Is Warranty Lookup?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -256,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Products' }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "f9fc034b-e7d2-457b-9493-5a7633f11933",
+      "name": "Read Products Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        0
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const lookup = $node['Detect Lookup Intent'].json;\nconst telegramUserId = String(lookup.telegram_user_id || '').trim();\nconst rows = $input.all().map((item) => item.json || {});\n\nconst products = rows.filter((row) => {\n  const rowUserId = String(row.User_ID || row.user_id || '').trim();\n  return rowUserId && rowUserId === telegramUserId;\n});\n\nreturn [\n  {\n    json: {\n      chat_id: lookup.chat_id,\n      telegram_user_id: telegramUserId,\n      user_name: lookup.user_name,\n      products,\n      product_count: products.length\n    }\n  }\n];"
+      },
+      "id": "ac4a18f8-0a35-4df0-8e66-e2a793974ec0",
+      "name": "Filter Products by User_ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const products = Array.isArray($json.products) ? $json.products : [];\n\nif (products.length === 0) {\n  return [\n    {\n      json: {\n        chat_id: $json.chat_id,\n        reply_text: 'No saved warranties found yet. Upload a bill or warranty card first.'\n      }\n    }\n  ];\n}\n\nconst lines = products.map((product, index) => {\n  const productName = product.Product_Name || 'Unnamed product';\n  const brand = product.Brand || 'Not found';\n  const warrantyValidTill = product.Warranty_Expiry_Date || 'Unknown';\n  const warrantyStatus = product.Warranty_Status || 'Unknown';\n  const invoiceNumber = product.Invoice_Number || 'Not found';\n\n  return [\n    `${index + 1}. ${productName}`,\n    `Brand: ${brand}`,\n    `Warranty Valid Till: ${warrantyValidTill}`,\n    `Warranty Status: ${warrantyStatus}`,\n    `Invoice Number: ${invoiceNumber}`\n  ].join('\\n');\n});\n\nconst replyText = `Your saved warranties:\\n\\n${lines.join('\\n\\n')}`;\n\nreturn [\n  {\n    json: {\n      chat_id: $json.chat_id,\n      reply_text: replyText.length > 3900 ? `${replyText.slice(0, 3850)}\\n\\nMore products are saved, but this message was shortened.` : replyText\n    }\n  }\n];"
+      },
+      "id": "a54fdc33-5932-47f3-bc3b-e9f0f6ea42a0",
+      "name": "Format Warranty List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reply_text }}",
+        "additionalFields": {}
+      },
+      "id": "db1da75c-062f-406d-91e9-89259c07307d",
+      "name": "Telegram Reply - Saved Warranties",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        784,
+        0
+      ],
+      "webhookId": "92fdbc12-a8db-4513-a8c9-c8e02d9de8d1"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "Send /mywarranties, show my warranties, or my products to view saved warranties.",
+        "additionalFields": {}
+      },
+      "id": "23ecc08b-7836-43aa-a19a-393ea23935e3",
+      "name": "Telegram Reply - Help Text",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        272
+      ],
+      "webhookId": "b9ef8b70-5ae8-4cda-9690-f40db5aadd3e"
+    }
+  ],
+  "connections": {
+    "When Executed by Router": {
+      "main": [
+        [
+          {
+            "node": "Detect Lookup Intent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Lookup Intent": {
+      "main": [
+        [
+          {
+            "node": "Is Warranty Lookup?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Warranty Lookup?": {
+      "main": [
+        [
+          {
+            "node": "Read Products Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Telegram Reply - Help Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Products Sheet": {
+      "main": [
+        [
+          {
+            "node": "Filter Products by User_ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Products by User_ID": {
+      "main": [
+        [
+          {
+            "node": "Format Warranty List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Warranty List": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply - Saved Warranties",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "instanceId": "6950ecbbbeb052ad10e35a4abe396daa22577c41ec2d8a9cd9613785fd1cfbb4"
+  }
+}
