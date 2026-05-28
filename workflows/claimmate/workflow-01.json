@@ -1,0 +1,688 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "b68fb190-c9ea-44b4-93b6-402f53ad1fc4",
+      "name": "When Executed by Router",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "fileId": "={{ $json.file_id }}",
+        "additionalFields": {}
+      },
+      "id": "35f58fad-a502-4555-8023-ff2561db4b9b",
+      "name": "Download Telegram File",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        0
+      ],
+      "webhookId": "3bd0caf7-00d5-4c4e-9618-0945053f70a5",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "={{ $node[\"When Executed by Router\"].json.file_name || $json.file_name }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "17Rdcerf43_WaNxW7af2tCb2d9rX5Eq4t",
+          "mode": "list",
+          "cachedResultName": "ClaimMate",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/17Rdcerf43_WaNxW7af2tCb2d9rX5Eq4t"
+        },
+        "options": {}
+      },
+      "id": "2ed11b84-7fbf-4383-b65b-ff57fdc8c020",
+      "name": "Upload file",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        448,
+        0
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "DYxHP2OTyhSn7mOc",
+          "name": "Google Drive Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "id"
+        },
+        "text": "You are ClaimMate's bill and warranty extraction assistant.\n\nAnalyze the uploaded bill, invoice, receipt, warranty card, or product document.\n\nReturn valid JSON only. Do not include markdown. Do not include explanations.\n\nUse this exact schema:\n\n{\n  \"document_type\": null,\n  \"product_name\": null,\n  \"brand\": null,\n  \"category\": null,\n  \"seller\": null,\n  \"invoice_number\": null,\n  \"purchase_date\": null,\n  \"purchase_amount\": null,\n  \"warranty_period_months\": null,\n  \"warranty_expiry_date\": null,\n  \"return_window_days\": null,\n  \"return_expiry_date\": null,\n  \"support_email_found_in_document\": null,\n  \"support_phone_found_in_document\": null,\n  \"confidence_score\": null,\n  \"missing_fields\": []\n}\n\nRules:\n- Dates must be DD-MM-YYYY when possible.\n- category must be one of: electronics, appliance, mobile, accessory, unknown.\n- Use null when a value is not visible.\n- Do not guess warranty details.\n- confidence_score must be between 0 and 1.",
+        "imageUrls": "=https://drive.google.com/uc?export=download&id={{ $('Upload file').item.json.id }}",
+        "options": {}
+      },
+      "id": "5afc4604-c5f7-4fb8-94fd-926d99950259",
+      "name": "Extract Bill Details with AI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        896,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "ef8xS8DrLv17ygul",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseJsonFromString(value) {\n  if (!value || typeof value !== 'string') return null;\n\n  const cleaned = value\n    .replace(/^```(?:json)?/i, '')\n    .replace(/```$/i, '')\n    .trim();\n\n  try {\n    return JSON.parse(cleaned);\n  } catch (error) {\n    const match = cleaned.match(/\\{[\\s\\S]*\\}/);\n    if (match) {\n      try {\n        return JSON.parse(match[0]);\n      } catch (_) {}\n    }\n  }\n\n  return null;\n}\n\nfunction readAiPayload(input) {\n  // n8n sometimes sends the OpenAI node output as an array\n  const itemJson = Array.isArray(input) ? input[0] : input;\n\n  // OpenAI Responses / Analyze format:\n  // content: [{ type: \"output_text\", text: \"{...}\" }]\n  if (Array.isArray(itemJson?.content)) {\n    const textBlock = itemJson.content.find(\n      (block) => block.type === 'output_text' && block.text\n    );\n\n    if (textBlock?.text) {\n      const parsed = parseJsonFromString(textBlock.text);\n      if (parsed) return parsed;\n    }\n  }\n\n  // Other possible formats\n  const candidates = [\n    itemJson?.output,\n    itemJson?.text,\n    itemJson?.message?.content,\n    itemJson?.choices?.[0]?.message?.content,\n    itemJson?.data,\n  ];\n\n  for (const candidate of candidates) {\n    if (!candidate) continue;\n\n    if (typeof candidate === 'object' && !Array.isArray(candidate)) {\n      return candidate;\n    }\n\n    if (typeof candidate === 'string') {\n      const parsed = parseJsonFromString(candidate);\n      if (parsed) return parsed;\n    }\n  }\n\n  return {};\n}\n\nfunction uuid(prefix) {\n  const random = Math.random().toString(36).slice(2, 10);\n  return `${prefix}_${Date.now()}_${random}`;\n}\n\nfunction parseDateFlexible(dateValue) {\n  if (!dateValue) return null;\n\n  if (dateValue instanceof Date && !Number.isNaN(dateValue.getTime())) {\n    return dateValue;\n  }\n\n  const raw = String(dateValue).trim();\n\n  // Handles DD-MM-YYYY or DD/MM/YYYY\n  const dmyMatch = raw.match(/^(\\d{1,2})[-/](\\d{1,2})[-/](\\d{4})$/);\n  if (dmyMatch) {\n    const day = Number(dmyMatch[1]);\n    const month = Number(dmyMatch[2]) - 1;\n    const year = Number(dmyMatch[3]);\n    const parsed = new Date(Date.UTC(year, month, day));\n\n    if (!Number.isNaN(parsed.getTime())) return parsed;\n  }\n\n  // Handles YYYY-MM-DD\n  const ymdMatch = raw.match(/^(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})$/);\n  if (ymdMatch) {\n    const year = Number(ymdMatch[1]);\n    const month = Number(ymdMatch[2]) - 1;\n    const day = Number(ymdMatch[3]);\n    const parsed = new Date(Date.UTC(year, month, day));\n\n    if (!Number.isNaN(parsed.getTime())) return parsed;\n  }\n\n  const parsed = new Date(raw);\n  if (!Number.isNaN(parsed.getTime())) return parsed;\n\n  return null;\n}\n\nfunction formatDateDDMMYYYY(date) {\n  if (!date || Number.isNaN(date.getTime())) return null;\n\n  const day = String(date.getUTCDate()).padStart(2, '0');\n  const month = String(date.getUTCMonth() + 1).padStart(2, '0');\n  const year = date.getUTCFullYear();\n\n  return `${day}-${month}-${year}`;\n}\n\nfunction calculateWarrantyExpiry(purchaseDate, warrantyMonths) {\n  const purchase = parseDateFlexible(purchaseDate);\n  const months = Number(warrantyMonths);\n\n  if (!purchase || !months || Number.isNaN(months)) return null;\n\n  const expiry = new Date(purchase);\n  expiry.setUTCMonth(expiry.getUTCMonth() + months);\n\n  // Expiry should usually be one day before exact month completion\n  expiry.setUTCDate(expiry.getUTCDate() - 1);\n\n  return formatDateDDMMYYYY(expiry);\n}\n\nfunction warrantyStatus(expiryDate) {\n  const expiry = parseDateFlexible(expiryDate);\n  if (!expiry) return 'Unknown';\n\n  const today = new Date();\n  const todayUtc = new Date(Date.UTC(\n    today.getUTCFullYear(),\n    today.getUTCMonth(),\n    today.getUTCDate()\n  ));\n\n  const inThirtyDays = new Date(todayUtc);\n  inThirtyDays.setUTCDate(inThirtyDays.getUTCDate() + 30);\n\n  if (expiry < todayUtc) return 'Expired';\n  if (expiry <= inThirtyDays) return 'Expiring Soon';\n  return 'Active';\n}\n\n// Source node\nconst source = $node['When Executed by Router'].json;\n\n// Correct actual Google Drive upload node name\nconst drive = $node['Upload file'].json;\n\n// AI output\nconst ai = readAiPayload($json);\n\n// Dates and IDs\nconst now = new Date().toISOString();\nconst uploadDate = now.slice(0, 10);\nconst documentId = uuid('doc');\nconst productId = uuid('prod');\n\n// If warranty expiry is missing but purchase date + warranty months are available, calculate it\nconst calculatedWarrantyExpiry = calculateWarrantyExpiry(\n  ai.purchase_date,\n  ai.warranty_period_months\n);\n\nconst finalWarrantyExpiryDate =\n  ai.warranty_expiry_date || calculatedWarrantyExpiry || null;\n\nconst status = warrantyStatus(finalWarrantyExpiryDate);\n\nconst driveLink =\n  drive.webViewLink ||\n  drive.webContentLink ||\n  drive.webUrl ||\n  drive.alternateLink ||\n  drive.url ||\n  (drive.id ? `https://drive.google.com/file/d/${drive.id}/view` : '');\n\nreturn [\n  {\n    json: {\n      document_id: documentId,\n      product_id: productId,\n\n      user_id: String(source.telegram_user_id || ''),\n      chat_id: source.chat_id,\n      telegram_user_id: source.telegram_user_id,\n      user_name: source.user_name,\n\n      telegram_file_id: source.file_id,\n      file_name: source.file_name,\n      file_type: source.file_type,\n      mime_type: source.mime_type,\n      message_text: source.message_text,\n\n      google_drive_link: driveLink,\n      google_drive_file_id: drive.id || drive.fileId || '',\n\n      document_type: ai.document_type || ai.document_category || 'unknown',\n      product_name: ai.product_name || null,\n      brand: ai.brand || null,\n      category: ai.category || ai.product_category || 'unknown',\n      seller: ai.seller || ai.seller_name || null,\n      invoice_number: ai.invoice_number || null,\n      purchase_date: ai.purchase_date || null,\n      purchase_amount: ai.purchase_amount || ai.purchase_price || null,\n\n      warranty_period_months: ai.warranty_period_months || null,\n      warranty_expiry_date: finalWarrantyExpiryDate,\n\n      return_window_days: ai.return_window_days || null,\n      return_expiry_date: ai.return_expiry_date || null,\n\n      support_email_found_in_document:\n        ai.support_email_found_in_document ||\n        ai.manufacturer_or_seller_email ||\n        null,\n\n      support_phone_found_in_document:\n        ai.support_phone_found_in_document || null,\n\n      confidence_score: ai.confidence_score ?? ai.confidence ?? null,\n\n      missing_fields: Array.isArray(ai.missing_fields)\n        ? ai.missing_fields.join(', ')\n        : (ai.missing_fields || ''),\n\n      ocr_text: ai.ocr_text || '',\n      processing_status: 'Processed',\n      upload_date: uploadDate,\n      created_at: now,\n      last_updated: now,\n      warranty_status: status,\n\n      notes: calculatedWarrantyExpiry && !ai.warranty_expiry_date\n        ? `Warranty expiry calculated from purchase_date and warranty_period_months.`\n        : ''\n    }\n  }\n];"
+      },
+      "id": "67c30062-00f5-495b-90e9-52e7aa5bee07",
+      "name": "Normalize AI Extraction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "=https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit",
+          "mode": "url"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ 'Documents' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Document_ID": "={{ $json.document_id }}",
+            "User_ID": "={{ $json.user_id }}",
+            "Telegram_File_ID": "={{ $json.telegram_file_id }}",
+            "File_Name": "={{ $json.file_name }}",
+            "File_Type": "={{ $json.file_type }}",
+            "Google_Drive_Link": "={{ $json.google_drive_link }}",
+            "Document_Type": "={{ $json.document_type }}",
+            "OCR_Text": "={{ $json.ocr_text }}",
+            "Processing_Status": "={{ $json.processing_status }}",
+            "Upload_Date": "={{ $json.upload_date }}",
+            "Notes": "={{ $json.notes }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Document_ID",
+              "displayName": "Document_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Telegram_File_ID",
+              "displayName": "Telegram_File_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "File_Name",
+              "displayName": "File_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "File_Type",
+              "displayName": "File_Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Google_Drive_Link",
+              "displayName": "Google_Drive_Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Document_Type",
+              "displayName": "Document_Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "OCR_Text",
+              "displayName": "OCR_Text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Processing_Status",
+              "displayName": "Processing_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Upload_Date",
+              "displayName": "Upload_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "1c9d05b5-d422-4027-9b2f-7042eb7ce116",
+      "name": "Append to Documents Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1344,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Normalize AI Extraction\"].json.chat_id }}",
+        "text": "=Document processed.\n\nProduct: {{ $node[\"Normalize AI Extraction\"].json.product_name || 'Not found' }}\nBrand: {{ $node[\"Normalize AI Extraction\"].json.brand || 'Not found' }}\nCategory: {{ $node[\"Normalize AI Extraction\"].json.category || 'unknown' }}\nPurchase Date: {{ $node[\"Normalize AI Extraction\"].json.purchase_date || 'Not found' }}\nWarranty Valid Till: {{ $node[\"Normalize AI Extraction\"].json.warranty_expiry_date || 'Unknown' }}\nStatus: {{ $node[\"Normalize AI Extraction\"].json.warranty_status }}\nConfidence: {{ $node[\"Normalize AI Extraction\"].json.confidence_score || 'Unknown' }}\n\nReply 1 to confirm, 2 to edit, 3 to delete.",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "cc27330d-f49c-482d-87f4-334162a22886",
+      "name": "Telegram Reply - Summary",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1792,
+        0
+      ],
+      "webhookId": "b18fd693-88d4-4700-83ac-3d3043b1d1ed",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "7995a505-e7b6-48b4-a1f9-e2993b7327a2",
+      "name": "Workflow Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.execution?.data?.resultData?.runData?.[\"When Executed by Router\"]?.[0]?.data?.main?.[0]?.[0]?.json?.chat_id || \"\" }}",
+        "text": "I could not process this document properly. Please try another clearer image or PDF.",
+        "additionalFields": {}
+      },
+      "id": "139ba766-118a-473b-81b8-0a65c3963fcb",
+      "name": "Error Handler / Failure Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        224,
+        224
+      ],
+      "webhookId": "4f8ee4d9-af7c-43eb-b5d6-decda92b7274",
+      "credentials": {
+        "telegramApi": {
+          "id": "cKXiIhdqFF06mL9t",
+          "name": "ClaimMate Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Upload file').item.json.id }}",
+          "mode": "id"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone"
+          }
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        672,
+        0
+      ],
+      "id": "84cdb8b0-efae-4b63-be01-62b281c399b4",
+      "name": "Share file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "DYxHP2OTyhSn7mOc",
+          "name": "Google Drive Ping@zosmetics.com"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE",
+          "mode": "list",
+          "cachedResultName": "ClaimMate_MVP_Database",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2043190701,
+          "mode": "list",
+          "cachedResultName": "Products",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/117kMqAhX8jyZpQUZkf74Pnbl-fWMRvNTPUSBDUTgsSE/edit#gid=2043190701"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Product_ID",
+              "displayName": "Product_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_ID",
+              "displayName": "User_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Document_ID",
+              "displayName": "Document_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Product_Name",
+              "displayName": "Product_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Brand",
+              "displayName": "Brand",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Seller",
+              "displayName": "Seller",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Invoice_Number",
+              "displayName": "Invoice_Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Purchase_Date",
+              "displayName": "Purchase_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Purchase_Amount",
+              "displayName": "Purchase_Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Warranty_Period_Months",
+              "displayName": "Warranty_Period_Months",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Warranty_Expiry_Date",
+              "displayName": "Warranty_Expiry_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Return_Window_Days",
+              "displayName": "Return_Window_Days",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Return_Expiry_Date",
+              "displayName": "Return_Expiry_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Support_Email",
+              "displayName": "Support_Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Support_Phone",
+              "displayName": "Support_Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Warranty_Status",
+              "displayName": "Warranty_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Confidence_Score",
+              "displayName": "Confidence_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "User_Confirmed",
+              "displayName": "User_Confirmed",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Created_At",
+              "displayName": "Created_At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Updated",
+              "displayName": "Last_Updated",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1568,
+        0
+      ],
+      "id": "a985c56a-e53d-4f72-b849-959acf83e9c0",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "upnOcvWMGguMdzQY",
+          "name": "Google Sheets Ping@zosmetics.com"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Router": {
+      "main": [
+        [
+          {
+            "node": "Download Telegram File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Telegram File": {
+      "main": [
+        [
+          {
+            "node": "Upload file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload file": {
+      "main": [
+        [
+          {
+            "node": "Share file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Bill Details with AI": {
+      "main": [
+        [
+          {
+            "node": "Normalize AI Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize AI Extraction": {
+      "main": [
+        [
+          {
+            "node": "Append to Documents Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Documents Sheet": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Error Handler / Failure Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share file": {
+      "main": [
+        [
+          {
+            "node": "Extract Bill Details with AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Telegram Reply - Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6950ecbbbeb052ad10e35a4abe396daa22577c41ec2d8a9cd9613785fd1cfbb4"
+  }
+}
