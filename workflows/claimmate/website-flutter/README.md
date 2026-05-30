@@ -17,22 +17,28 @@ This is a separate Flutter Web version of the ClaimMate website. It does not rep
 - Responsive desktop, tablet, and mobile layout
 - Telegram bot CTA configured by Dart define
 
+## Telegram bot URL
+
+```text
+https://t.me/claimmatebot
+```
+
 ## Run locally
 
 ```bash
 cd workflows/claimmate/website-flutter
 flutter pub get
-flutter run -d chrome --dart-define=TELEGRAM_BOT_URL=https://t.me/your_bot
+flutter run -d chrome --dart-define=TELEGRAM_BOT_URL=https://t.me/claimmatebot
 ```
 
 ## Build
 
 ```bash
-flutter build web --dart-define=TELEGRAM_BOT_URL=https://t.me/your_bot
+flutter build web --dart-define=TELEGRAM_BOT_URL=https://t.me/claimmatebot
 ```
 
 ## Notes
 
-If `TELEGRAM_BOT_URL` is not provided, CTA buttons show a missing URL state instead of opening a broken link.
+The app reads the Telegram URL using `TELEGRAM_BOT_URL`. If this value is not provided during run/build, CTA buttons show a missing URL state instead of opening a broken link.
 
 ClaimMate is an independent product and is not affiliated with any brand or company.
