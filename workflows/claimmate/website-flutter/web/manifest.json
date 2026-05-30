@@ -1,0 +1,11 @@
+{
+  "name": "ClaimMate",
+  "short_name": "ClaimMate",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#0ea5e9",
+  "description": "AI claims and warranty assistant for Indian households.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false
+}
