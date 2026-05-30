@@ -97,11 +97,11 @@ class _HomePageState extends State<HomePage> {
                     HowSection(onStepTap: (i) => setState(() => demoStep = i)),
                     InteractiveDemo(step: demoStep, onStep: (i) => setState(() => demoStep = i)),
                     DashboardSection(),
-                    ClaimSection(),
-                    WhySection(),
-                    TrustSection(),
+                    const ClaimSection(),
+                    const WhySection(),
+                    const TrustSection(),
                     FaqSection(),
-                    FinalCta(),
+                    const FinalCta(),
                     const Footer(),
                   ],
                 ),
@@ -426,7 +426,7 @@ class HowSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Section(
         child: Column(children: [
-          const SectionTitle(eyebrow: 'How it works', title: 'A bill becomes an actionable claim.', body: 'ClaimMate turns boring warranty paperwork into a guided workflow. Revolutionary, because apparently keeping receipts was too much for civilization.'),
+          const SectionTitle(eyebrow: 'How it works', title: 'A bill becomes an actionable claim.', body: 'ClaimMate turns boring warranty paperwork into a guided workflow.'),
           const SizedBox(height: 34),
           GridWrap(children: List.generate(3, (i) {
             final items = [
@@ -495,7 +495,7 @@ class InteractiveDemo extends StatelessWidget {
   Widget _demoCopy(List<String> steps) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Interactive product demo', style: GoogleFonts.spaceGrotesk(fontSize: 42, fontWeight: FontWeight.w900)),
         const SizedBox(height: 12),
-        const Text('Click a step and watch the assistant state change. A landing page doing actual work, shocking development.', style: TextStyle(color: AppColors.muted, fontSize: 17, height: 1.5)),
+        const Text('Click a step and watch the assistant state change.', style: TextStyle(color: AppColors.muted, fontSize: 17, height: 1.5)),
         const SizedBox(height: 26),
         ...List.generate(steps.length, (i) => Padding(
               padding: const EdgeInsets.only(bottom: 10),
@@ -602,7 +602,7 @@ class WhySection extends StatelessWidget {
         const SizedBox(height: 34),
         GridWrap(children: const [
           StepCard(icon: Icons.folder_off_rounded, title: 'Bills get lost', text: 'Receipts vanish exactly when needed.', number: 1),
-          StepCard(icon: Icons.timer_off_rounded, title: 'Warranty dates expire', text: 'People remember too late. Naturally.', number: 2),
+          StepCard(icon: Icons.timer_off_rounded, title: 'Warranty dates expire', text: 'People remember too late.', number: 2),
           StepCard(icon: Icons.support_agent_rounded, title: 'Claims are painful', text: 'ClaimMate keeps the follow-up moving.', number: 3),
         ])
       ]));
@@ -618,8 +618,8 @@ class TrustSection extends StatelessWidget {
           StepCard(icon: Icons.how_to_reg_rounded, title: 'You approve every email', text: 'Drafting is automated. Sending requires approval.', number: 1),
           StepCard(icon: Icons.lock_rounded, title: 'Secure document handling', text: 'Designed for private invoice and warranty records.', number: 2),
           StepCard(icon: Icons.flag_rounded, title: 'Built for Indian bills', text: 'Structured around Indian retailers, brands, and invoice patterns.', number: 3),
-          StepCard(icon: Icons.telegram_rounded, title: 'Telegram MVP', text: 'Start from Telegram while WhatsApp support is developed.', number: 4),
-          StepCard(icon: Icons.chat_rounded, title: 'WhatsApp coming soon', text: 'The final mass-market channel for normal humans.', number: 5),
+          StepCard(icon: Icons.send_rounded, title: 'Telegram MVP', text: 'Start from Telegram while WhatsApp support is developed.', number: 4),
+          StepCard(icon: Icons.chat_rounded, title: 'WhatsApp coming soon', text: 'The final mass-market channel.', number: 5),
           StepCard(icon: Icons.gavel_rounded, title: 'Not legal advice', text: 'It helps draft and track claims. It is not a lawyer.', number: 6),
         ])
       ]));
@@ -646,7 +646,23 @@ class FaqSection extends StatelessWidget {
 class FinalCta extends StatelessWidget {
   const FinalCta({super.key});
   @override
-  Widget build(BuildContext context) => Section(child: GlassCard(padding: const EdgeInsets.all(38), child: Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Start with your next bill.', style: GoogleFonts.spaceGrotesk(fontSize: 44, fontWeight: FontWeight.w900)), const SizedBox(height: 10), const Text('Upload. Track. Claim. Done.', style: TextStyle(color: AppColors.muted, fontSize: 18))])), const CtaButton()])),;
+  Widget build(BuildContext context) {
+    final mobile = ResponsiveBreakpoints.of(context).smallerThan(TABLET);
+    final content = [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Start with your next bill.', style: GoogleFonts.spaceGrotesk(fontSize: mobile ? 34 : 44, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 10),
+            const Text('Upload. Track. Claim. Done.', style: TextStyle(color: AppColors.muted, fontSize: 18)),
+          ],
+        ),
+      ),
+      const CtaButton(),
+    ];
+    return Section(child: GlassCard(padding: const EdgeInsets.all(38), child: mobile ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [content.first, const SizedBox(height: 24), content.last]) : Row(children: content)));
+  }
 }
 
 class Footer extends StatelessWidget {
